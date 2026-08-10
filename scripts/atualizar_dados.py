@@ -161,6 +161,87 @@ def baixar_fsb():
     return idx
 
 
+# ---------------------------------------------------------------- novidades
+def _chave(u):
+    return u.get("CodCEG") or (u.get("NomEmpreendimento", "") + "|" + u.get("SigUFPrincipal", ""))
+
+
+def _mw(u, campo="MdaPotenciaFiscalizadaKw"):
+    v = (u.get(campo) or "").strip().replace(".", "").replace(",", ".")
+    try:
+        return round(float(v) / 1000, 4)
+    except Exception:
+        return None
+
+
+def detectar_novidades(dest, usinas):
+    """Compara com o snapshot anterior e devolve o que mudou no cadastro.
+
+    Só reporta o que a própria ANEEL publicou de diferente entre duas coletas.
+    Nada aqui é inferido: é diferença literal de campo entre dois arquivos.
+    """
+    hist_path = dest.parent / "historico.json"
+    try:
+        antes = json.loads(dest.read_text(encoding="utf-8")).get("usinas", [])
+    except Exception:
+        antes = []
+    if not antes:
+        log("novidades: sem snapshot anterior — primeira coleta, nada a comparar")
+        return {"desde": None, "novas": [], "fase": [], "potencia": [], "dono": [], "removidas": 0}
+
+    ant = {_chave(u): u for u in antes}
+    atu = {_chave(u): u for u in usinas}
+
+    novas, fase, potencia, dono = [], [], [], []
+    for k, u in atu.items():
+        v = ant.get(k)
+        if v is None:
+            novas.append({"ceg": u.get("CodCEG", ""), "nome": u.get("NomEmpreendimento", ""),
+                          "tipo": u.get("SigTipoGeracao", ""), "uf": u.get("SigUFPrincipal", ""),
+                          "mw": _mw(u), "fase": u.get("DscFaseUsina", "")})
+            continue
+        if (v.get("DscFaseUsina") or "") != (u.get("DscFaseUsina") or ""):
+            fase.append({"ceg": u.get("CodCEG", ""), "nome": u.get("NomEmpreendimento", ""),
+                         "tipo": u.get("SigTipoGeracao", ""), "uf": u.get("SigUFPrincipal", ""),
+                         "de": v.get("DscFaseUsina", ""), "para": u.get("DscFaseUsina", "")})
+        a, b = _mw(v), _mw(u)
+        if a is not None and b is not None and abs(a - b) > 0.001:
+            potencia.append({"ceg": u.get("CodCEG", ""), "nome": u.get("NomEmpreendimento", ""),
+                             "tipo": u.get("SigTipoGeracao", ""), "uf": u.get("SigUFPrincipal", ""),
+                             "de": a, "para": b})
+        if (v.get("DscPropriRegimePariticipacao") or "") != (u.get("DscPropriRegimePariticipacao") or ""):
+            dono.append({"ceg": u.get("CodCEG", ""), "nome": u.get("NomEmpreendimento", ""),
+                         "tipo": u.get("SigTipoGeracao", ""), "uf": u.get("SigUFPrincipal", ""),
+                         "de": (v.get("DscPropriRegimePariticipacao") or "")[:160],
+                         "para": (u.get("DscPropriRegimePariticipacao") or "")[:160]})
+
+    removidas = len([k for k in ant if k not in atu])
+    try:
+        desde = json.loads(dest.read_text(encoding="utf-8")).get("gerado_em")
+    except Exception:
+        desde = None
+
+    nov = {"desde": desde, "novas": novas[:400], "fase": fase[:400],
+           "potencia": potencia[:400], "dono": dono[:400], "removidas": removidas}
+    log(f"novidades: {len(novas)} novas · {len(fase)} mudaram de fase · "
+        f"{len(potencia)} mudaram de potência · {len(dono)} mudaram de proprietário · "
+        f"{removidas} saíram da base")
+
+    # acumular um diário de bordo, para o site mostrar histórico e não só a última rodada
+    try:
+        diario = json.loads(hist_path.read_text(encoding="utf-8")) if hist_path.exists() else []
+    except Exception:
+        diario = []
+    if novas or fase or potencia or dono or removidas:
+        diario.insert(0, {
+            "em": datetime.datetime.now(datetime.timezone.utc).strftime("%d/%m/%Y %H:%M UTC"),
+            "desde": desde, "novas": len(novas), "fase": len(fase),
+            "potencia": len(potencia), "dono": len(dono), "removidas": removidas})
+        diario = diario[:180]
+        hist_path.write_text(json.dumps(diario, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+    return nov
+
+
 # ---------------------------------------------------------------- main
 def main():
     usinas, origem = baixar_siga()
@@ -198,8 +279,14 @@ def main():
         "com_barragem": casadas,
         "usinas": usinas,
     }
-    dest = pathlib.Path(__file__).resolve().parent.parent / "data" / "usinas.json"
+    raiz = pathlib.Path(__file__).resolve().parent.parent
+    dest = raiz / "data" / "usinas.json"
     dest.parent.mkdir(parents=True, exist_ok=True)
+
+    # ---- detectar novidades comparando com o snapshot anterior ----
+    novidades = detectar_novidades(dest, usinas)
+    saida["novidades"] = novidades
+
     dest.write_text(json.dumps(saida, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     print(f"OK — {len(usinas)} usinas em {dest} ({dest.stat().st_size/1e6:.1f} MB)")
     for t in sorted(por_tipo):
