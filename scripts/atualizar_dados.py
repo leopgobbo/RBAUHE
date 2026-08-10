@@ -22,7 +22,7 @@ SIGA_RECURSOS = [
     "2f65a1b0-19b8-4360-8238-b34ab4693d55",   # siga-empreendimentos-geracao-diario.csv
     "11ec447d-698d-4ab8-977f-b424d5deee6a",   # siga-empreendimentos-geracao.csv (mensal)
 ]
-SIGA_COLS = ["NomEmpreendimento","CodCEG","SigUFPrincipal","SigTipoGeracao","DscFaseUsina",
+SIGA_COLS = ["NomEmpreendimento","CodCEG","IdeNucleoCEG","SigUFPrincipal","SigTipoGeracao","DscFaseUsina",
              "DscTipoOutorga","DatEntradaOperacao","MdaPotenciaOutorgadaKw",
              "MdaPotenciaFiscalizadaKw","MdaGarantiaFisicaKw","NumCoordNEmpreendimento",
              "NumCoordEEmpreendimento","DatInicioVigencia","DatFimVigencia",
@@ -101,94 +101,110 @@ def _nucleo(ceg):
     return (m.group(1) + m.group(2)) if m else ""
 
 
-def baixar_fsb(diag):
-    """Devolve dict de chaves -> {classe, cri, dpa}. Nunca levanta exceção.
+# ordem de severidade para consolidar vários barramentos da mesma usina
+_SEV = {"BAIXO": 1, "BAIXA": 1, "MEDIO": 2, "MÉDIO": 2, "MEDIA": 2, "MÉDIA": 2, "ALTO": 3, "ALTA": 3}
 
-    Registra em `diag` o que encontrou, para diagnóstico posterior sem
-    precisar do log do Actions.
+
+def _pior(a, b):
+    if not a:
+        return b
+    if not b:
+        return a
+    return a if _SEV.get(a.upper(), 0) >= _SEV.get(b.upper(), 0) else b
+
+
+def baixar_fsb(diag):
+    """Cruza o conjunto FSB da ANEEL. Nunca levanta exceção.
+
+    O FSB tem uma linha por barramento e por campanha de fiscalização, então
+    consolidamos por usina: fica a campanha mais recente e, entre barramentos
+    da mesma usina, a classificação mais severa.
     """
     try:
         recursos = recursos_csv(FSB_DATASET)
     except Exception as e:
         diag["erro"] = f"não localizei recursos CSV: {e}"
-        log(f"FSB: {diag['erro']}")
+        log("FSB: " + diag["erro"])
         return {}
     diag["recursos"] = [{"id": r[0][:8], "nome": r[1]} for r in recursos]
 
-    melhor, melhor_idx = None, {}
-    for rid, nome, _url in recursos:
+    rows, usado = [], None
+    for rid, nome, _u in recursos:
         try:
             try:
                 rows = ckan_sql(rid)
             except Exception:
                 rows = ckan_dump(rid)
+            if rows:
+                usado = {"recurso": rid[:8], "nome_recurso": nome, "n_linhas": len(rows)}
+                break
         except Exception as e:
             diag.setdefault("tentativas", []).append({"recurso": rid[:8], "erro": str(e)[:120]})
-            continue
-        if not rows:
-            continue
-        cols = list(rows[0].keys())
+    if not rows:
+        diag["erro"] = "nenhum recurso CSV legível"
+        log("FSB: " + diag["erro"])
+        return {}
 
-        def acha(*termos, exatos=()):
-            for c in cols:                      # prioriza igualdade exata
-                if c.lower() in exatos:
-                    return c
+    cols = list(rows[0].keys())
+    lower = {c.lower(): c for c in cols}
+
+    def col(*candidatos, contendo=None):
+        for c in candidatos:                      # nome exato tem prioridade
+            if c.lower() in lower:
+                return lower[c.lower()]
+        if contendo:
             for c in cols:
                 cl = c.lower()
-                if all(t in cl for t in termos):
+                if all(t in cl for t in contendo):
                     return c
-            return None
+        return None
 
-        c_ceg = acha("ceg")
-        c_cls = acha("classe", exatos=("dscclasse", "classe", "clabarragem"))
-        c_cri = acha("categoria", "risco") or acha("cri", exatos=("cri", "numcri", "dsccri"))
-        c_dpa = acha("dano") or acha("dpa", exatos=("dpa", "numdpa", "dscdpa"))
-        c_nom = (acha("nom", "empreend") or acha("nom", "usina")
-                 or acha("nome") or acha("nom", "barragem") or acha("barragem"))
-        c_uf = acha("uf", exatos=("siguf", "uf", "sigufprincipal"))
+    c_nuc = col("IdeNucleoCEG", contendo=("nucleo", "ceg"))
+    c_ceg = col("CodCEG", contendo=("cod", "ceg"))
+    c_usi = col("NomUsina", "NomEmpreendimento", contendo=("nom", "usina"))
+    c_cls = col("IdcClassificacaoBarragens", "DscClasse", contendo=("classific",))
+    c_cri = col("DscCategoriaRiscoGeral", contendo=("categoria", "risco"))
+    c_dpa = col("DscDanoPotencialGeral", contendo=("dano", "potencial"))
+    c_fim = col("DatFimCampanha", contendo=("fim", "campanha"))
 
-        info_cols = {"recurso": rid[:8], "nome_recurso": nome,
-                     "colunas": cols[:40], "n_linhas": len(rows),
-                     "ceg": c_ceg, "classe": c_cls, "cri": c_cri, "dpa": c_dpa,
-                     "nome": c_nom, "uf": c_uf}
-        diag.setdefault("analisados", []).append(info_cols)
+    diag["colunas_detectadas"] = {"nucleo": c_nuc, "ceg": c_ceg, "usina": c_usi,
+                                  "classe": c_cls, "cri": c_cri, "dpa": c_dpa, "campanha_fim": c_fim}
+    diag.update(usado)
+    if not any([c_cls, c_cri, c_dpa]):
+        diag["erro"] = "colunas de classificação não reconhecidas"
+        log("FSB: " + diag["erro"] + f" — colunas: {cols[:20]}")
+        return {}
 
-        if not any([c_cls, c_cri, c_dpa]):
+    # consolida por usina, mantendo a campanha mais recente
+    porUsina = {}
+    for r in rows:
+        nuc = (r.get(c_nuc) or "").strip() if c_nuc else ""
+        usi = (r.get(c_usi) or "").strip() if c_usi else ""
+        chave = ("NUC", _norm(nuc)) if nuc else (("USI", _norm(usi)) if usi else None)
+        if not chave or not chave[1]:
             continue
+        campanha = (r.get(c_fim) or "") if c_fim else ""
+        atual = porUsina.get(chave)
+        if atual and atual["_campanha"] > campanha:
+            continue                                   # já temos campanha mais recente
+        novo = atual if (atual and atual["_campanha"] == campanha) else {"_campanha": campanha}
+        if c_cls and (r.get(c_cls) or "").strip():
+            novo["classe"] = str(r[c_cls]).strip().upper()[:1]
+        if c_cri and (r.get(c_cri) or "").strip():
+            novo["cri"] = _pior(novo.get("cri"), str(r[c_cri]).strip())
+        if c_dpa and (r.get(c_dpa) or "").strip():
+            novo["dpa"] = _pior(novo.get("dpa"), str(r[c_dpa]).strip())
+        porUsina[chave] = novo
 
-        idx = {}
-        for r in rows:
-            info = {}
-            for campo, col in (("classe", c_cls), ("cri", c_cri), ("dpa", c_dpa)):
-                if col and (r.get(col) or "").strip():
-                    info[campo] = str(r[col]).strip()
-            if not info:
-                continue
-            chaves = []
-            if c_ceg and r.get(c_ceg):
-                chaves += ["CEG:" + _norm(r[c_ceg]), "NUC:" + _nucleo(r[c_ceg])]
-            if c_nom and r.get(c_nom):
-                uf = (r.get(c_uf) or "").strip().upper() if c_uf else ""
-                nm = _norm(r[c_nom])
-                if nm:
-                    chaves.append("NOM:" + nm + "|" + uf)
-                    chaves.append("SONOME:" + nm)          # sem UF, último recurso
-            for k in chaves:
-                if k and not k.endswith(":") and k not in idx:
-                    idx[k] = info
-        if len(idx) > len(melhor_idx):
-            melhor_idx, melhor = idx, info_cols
-
-    if melhor:
-        diag["escolhido"] = melhor
-        diag["chaves"] = len(melhor_idx)
-        log(f"FSB: recurso {melhor['recurso']} · {melhor['n_linhas']} linhas · "
-            f"{len(melhor_idx)} chaves · colunas ceg={melhor['ceg']} classe={melhor['classe']} "
-            f"cri={melhor['cri']} dpa={melhor['dpa']} nome={melhor['nome']}")
-    else:
-        diag["erro"] = "nenhum recurso com colunas de classificação reconhecíveis"
-        log("FSB: " + diag["erro"])
-    return melhor_idx
+    idx = {}
+    for (tipo, val), info in porUsina.items():
+        info.pop("_campanha", None)
+        idx[tipo + ":" + val] = info
+    diag["chaves"] = len(idx)
+    diag["usinas_no_fsb"] = len(porUsina)
+    log(f"FSB: recurso {usado['recurso']} · {usado['n_linhas']} linhas · "
+        f"{len(porUsina)} usinas consolidadas · classe={c_cls} cri={c_cri} dpa={c_dpa} usina={c_usi} nucleo={c_nuc}")
+    return idx
 
 
 # ---------------------------------------------------------------- novidades
@@ -280,16 +296,14 @@ def main():
     fsb_diag = {}
     fsb = baixar_fsb(fsb_diag)
     casadas = 0
-    por_chave = {"CEG": 0, "NUC": 0, "NOM": 0, "SONOME": 0}
+    por_chave = {"NUC": 0, "USI": 0}
     for u in usinas:
         if not fsb:
             break
-        ceg = u.get("CodCEG", "")
+        nuc = _norm(u.get("IdeNucleoCEG", ""))
         nm = _norm(u.get("NomEmpreendimento", ""))
-        uf = u.get("SigUFPrincipal", "").strip().upper()
-        for k in ("CEG:" + _norm(ceg), "NUC:" + _nucleo(ceg),
-                  "NOM:" + nm + "|" + uf, "SONOME:" + nm):
-            if k in fsb:
+        for k in (("NUC:" + nuc) if nuc else "", ("USI:" + nm) if nm else ""):
+            if k and k in fsb:
                 u["_barragem"] = fsb[k]
                 casadas += 1
                 por_chave[k.split(":")[0]] += 1
