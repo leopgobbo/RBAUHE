@@ -53,15 +53,17 @@ def ckan_dump(rid):
     return list(csv.DictReader(io.StringIO(txt)))
 
 
-def resource_csv_url(slug):
-    """Descobre o recurso CSV de um conjunto pelo slug, sem depender de id fixo."""
+def recursos_csv(slug):
+    """Lista todos os recursos CSV de um conjunto, sem depender de id fixo."""
     d = json.loads(http(f"{BASE}/api/3/action/package_show?id={slug}"))
     if not d.get("success"):
         raise RuntimeError("package_show falhou")
-    for r in d["result"]["resources"]:
-        if (r.get("format") or "").upper() == "CSV":
-            return r["id"], r.get("url")
-    raise RuntimeError("nenhum recurso CSV no conjunto")
+    out = [(r["id"], r.get("name") or "", r.get("url") or "")
+           for r in d["result"]["resources"]
+           if (r.get("format") or "").upper() == "CSV"]
+    if not out:
+        raise RuntimeError("nenhum recurso CSV no conjunto")
+    return out
 
 
 # ---------------------------------------------------------------- SIGA
@@ -99,66 +101,94 @@ def _nucleo(ceg):
     return (m.group(1) + m.group(2)) if m else ""
 
 
-def baixar_fsb():
-    """Devolve dict de chaves -> {classe, cri, dpa}. Silencioso se não der."""
+def baixar_fsb(diag):
+    """Devolve dict de chaves -> {classe, cri, dpa}. Nunca levanta exceção.
+
+    Registra em `diag` o que encontrou, para diagnóstico posterior sem
+    precisar do log do Actions.
+    """
     try:
-        rid, _ = resource_csv_url(FSB_DATASET)
+        recursos = recursos_csv(FSB_DATASET)
     except Exception as e:
-        log(f"FSB: não localizei o recurso ({e}) — seguindo sem enriquecimento")
+        diag["erro"] = f"não localizei recursos CSV: {e}"
+        log(f"FSB: {diag['erro']}")
         return {}
-    try:
+    diag["recursos"] = [{"id": r[0][:8], "nome": r[1]} for r in recursos]
+
+    melhor, melhor_idx = None, {}
+    for rid, nome, _url in recursos:
         try:
-            rows = ckan_sql(rid)
-        except Exception:
-            rows = ckan_dump(rid)
-    except Exception as e:
-        log(f"FSB: download falhou ({e}) — seguindo sem enriquecimento")
-        return {}
-    if not rows:
-        return {}
-
-    cols = list(rows[0].keys())
-
-    def acha(*termos):
-        for c in cols:
-            cl = c.lower()
-            if all(t in cl for t in termos):
-                return c
-        return None
-
-    c_ceg = acha("ceg")
-    c_cls = acha("classe") or acha("class")
-    c_cri = acha("categoria", "risco") or acha("cri")
-    c_dpa = acha("dano") or acha("dpa")
-    c_nom = acha("nom", "empreend") or acha("nom", "usina") or acha("nome")
-    c_uf = acha("uf")
-    if not any([c_cls, c_cri, c_dpa]):
-        log(f"FSB: colunas de classificação não reconhecidas em {cols[:12]} — seguindo sem enriquecimento")
-        return {}
-
-    idx = {}
-    for r in rows:
-        info = {}
-        if c_cls and (r.get(c_cls) or "").strip():
-            info["classe"] = r[c_cls].strip()
-        if c_cri and (r.get(c_cri) or "").strip():
-            info["cri"] = r[c_cri].strip()
-        if c_dpa and (r.get(c_dpa) or "").strip():
-            info["dpa"] = r[c_dpa].strip()
-        if not info:
+            try:
+                rows = ckan_sql(rid)
+            except Exception:
+                rows = ckan_dump(rid)
+        except Exception as e:
+            diag.setdefault("tentativas", []).append({"recurso": rid[:8], "erro": str(e)[:120]})
             continue
-        chaves = []
-        if c_ceg and r.get(c_ceg):
-            chaves += ["CEG:" + _norm(r[c_ceg]), "NUC:" + _nucleo(r[c_ceg])]
-        if c_nom and r.get(c_nom):
-            uf = (r.get(c_uf) or "").strip().upper() if c_uf else ""
-            chaves.append("NOM:" + _norm(r[c_nom]) + "|" + uf)
-        for k in chaves:
-            if k and not k.endswith(":") and k not in idx:
-                idx[k] = info
-    log(f"FSB: {len(rows)} linhas lidas, {len(idx)} chaves de junção "
-        f"(colunas usadas: ceg={c_ceg} classe={c_cls} cri={c_cri} dpa={c_dpa})")
-    return idx
+        if not rows:
+            continue
+        cols = list(rows[0].keys())
+
+        def acha(*termos, exatos=()):
+            for c in cols:                      # prioriza igualdade exata
+                if c.lower() in exatos:
+                    return c
+            for c in cols:
+                cl = c.lower()
+                if all(t in cl for t in termos):
+                    return c
+            return None
+
+        c_ceg = acha("ceg")
+        c_cls = acha("classe", exatos=("dscclasse", "classe", "clabarragem"))
+        c_cri = acha("categoria", "risco") or acha("cri", exatos=("cri", "numcri", "dsccri"))
+        c_dpa = acha("dano") or acha("dpa", exatos=("dpa", "numdpa", "dscdpa"))
+        c_nom = (acha("nom", "empreend") or acha("nom", "usina")
+                 or acha("nome") or acha("nom", "barragem") or acha("barragem"))
+        c_uf = acha("uf", exatos=("siguf", "uf", "sigufprincipal"))
+
+        info_cols = {"recurso": rid[:8], "nome_recurso": nome,
+                     "colunas": cols[:40], "n_linhas": len(rows),
+                     "ceg": c_ceg, "classe": c_cls, "cri": c_cri, "dpa": c_dpa,
+                     "nome": c_nom, "uf": c_uf}
+        diag.setdefault("analisados", []).append(info_cols)
+
+        if not any([c_cls, c_cri, c_dpa]):
+            continue
+
+        idx = {}
+        for r in rows:
+            info = {}
+            for campo, col in (("classe", c_cls), ("cri", c_cri), ("dpa", c_dpa)):
+                if col and (r.get(col) or "").strip():
+                    info[campo] = str(r[col]).strip()
+            if not info:
+                continue
+            chaves = []
+            if c_ceg and r.get(c_ceg):
+                chaves += ["CEG:" + _norm(r[c_ceg]), "NUC:" + _nucleo(r[c_ceg])]
+            if c_nom and r.get(c_nom):
+                uf = (r.get(c_uf) or "").strip().upper() if c_uf else ""
+                nm = _norm(r[c_nom])
+                if nm:
+                    chaves.append("NOM:" + nm + "|" + uf)
+                    chaves.append("SONOME:" + nm)          # sem UF, último recurso
+            for k in chaves:
+                if k and not k.endswith(":") and k not in idx:
+                    idx[k] = info
+        if len(idx) > len(melhor_idx):
+            melhor_idx, melhor = idx, info_cols
+
+    if melhor:
+        diag["escolhido"] = melhor
+        diag["chaves"] = len(melhor_idx)
+        log(f"FSB: recurso {melhor['recurso']} · {melhor['n_linhas']} linhas · "
+            f"{len(melhor_idx)} chaves · colunas ceg={melhor['ceg']} classe={melhor['classe']} "
+            f"cri={melhor['cri']} dpa={melhor['dpa']} nome={melhor['nome']}")
+    else:
+        diag["erro"] = "nenhum recurso com colunas de classificação reconhecíveis"
+        log("FSB: " + diag["erro"])
+    return melhor_idx
 
 
 # ---------------------------------------------------------------- novidades
@@ -247,19 +277,25 @@ def main():
     usinas, origem = baixar_siga()
     log(f"SIGA: {len(usinas)} usinas hidrelétricas · {origem}")
 
-    fsb = baixar_fsb()
+    fsb_diag = {}
+    fsb = baixar_fsb(fsb_diag)
     casadas = 0
+    por_chave = {"CEG": 0, "NUC": 0, "NOM": 0, "SONOME": 0}
     for u in usinas:
         if not fsb:
             break
         ceg = u.get("CodCEG", "")
+        nm = _norm(u.get("NomEmpreendimento", ""))
         uf = u.get("SigUFPrincipal", "").strip().upper()
         for k in ("CEG:" + _norm(ceg), "NUC:" + _nucleo(ceg),
-                  "NOM:" + _norm(u.get("NomEmpreendimento", "")) + "|" + uf):
+                  "NOM:" + nm + "|" + uf, "SONOME:" + nm):
             if k in fsb:
                 u["_barragem"] = fsb[k]
                 casadas += 1
+                por_chave[k.split(":")[0]] += 1
                 break
+    fsb_diag["casadas"] = casadas
+    fsb_diag["por_chave"] = por_chave
     if fsb:
         log(f"FSB: {casadas} usinas enriquecidas com classificação de barragem")
 
@@ -277,6 +313,7 @@ def main():
         "total": len(usinas),
         "por_tipo": por_tipo,
         "com_barragem": casadas,
+        "diagnostico_fsb": fsb_diag,
         "usinas": usinas,
     }
     raiz = pathlib.Path(__file__).resolve().parent.parent
