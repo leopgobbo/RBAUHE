@@ -168,6 +168,8 @@ details .body{padding:0 0 18px;font-size:16px;color:var(--ink2)}
 .dark #mapsvg path.uf{stroke:var(--dark)}
 #mapsvg path.uf:hover{opacity:.75}
 #mapsvg path.uf.sel{stroke:var(--verde);stroke-width:2.2}
+#mapsvg line{pointer-events:none}
+#dbmap text{pointer-events:none}
 #mapsvg text.lbl{font-size:11px;fill:rgba(255,255,255,.9);pointer-events:none;font-weight:600;
   text-anchor:middle;paint-order:stroke;stroke:rgba(0,0,0,.35);stroke-width:2.5px}
 .legend{display:flex;flex-direction:column;gap:7px;font-size:13.5px}
@@ -293,8 +295,8 @@ footer b span{color:var(--verde)}
     <a href="#s4" data-txt="tipos de arranjo fio dágua reservatório desvio"><i>04</i>Tipos de arranjo</a>
     <div class="grp" data-grp="2">O parque brasileiro</div>
     <a href="#s5" data-txt="matriz elétrica parque instalado"><i>05</i>Matriz elétrica</a>
-    <a href="#s6" data-txt="mapa do brasil submercado geografia"><i>06</i>Mapa do Brasil</a>
-    <a href="#sdb" data-txt="banco de usinas research filtro consulta comparar" style="color:#fff;background:rgba(151,215,0,.09)"><i style="color:var(--verde)">07</i>Banco de usinas</a>
+    <a href="#s6" data-txt="mapa do brasil submercado geografia estados"><i>06</i>Mapa do Brasil</a>
+    <a href="#sdb" data-txt="banco de usinas research filtro consulta comparar novidades" style="color:#fff;background:rgba(151,215,0,.09)"><i style="color:var(--verde)">07</i>Banco de usinas</a>
     <div class="grp" data-grp="3">Regulação</div>
     <a href="#s7" data-txt="outorga ciclo de vida licenciamento"><i>08</i>Outorga e ciclo de vida</a>
     <a href="#s8" data-txt="linha do tempo legal marco regulatório leis"><i>09</i>Linha do tempo legal</a>
@@ -304,14 +306,13 @@ footer b span{color:var(--verde)}
     <a href="#s11" data-txt="mre gsf risco hidrológico"><i>12</i>MRE e GSF</a>
     <a href="#s12" data-txt="acr acl energia incentivada desconto tusd tust"><i>13</i>ACR, ACL e incentivada</a>
     <a href="#s13" data-txt="pld mercado de curto prazo mcp"><i>14</i>PLD e mercado curto prazo</a>
+    <a href="#scon" data-txt="contratos concessão autorização ccear take or pay cotas remuneração modelo de negócio"><i>15</i>Contratos e remuneração</a>
     <div class="grp" data-grp="5">Investimento</div>
-    <a href="#s14" data-txt="economia do ativo dcf tir valuation brownfield"><i>15</i>Economia do ativo</a>
-    <a href="#s15" data-txt="mapa de riscos"><i>16</i>Mapa de riscos</a>
-    <a href="#s16" data-txt="due diligence checklist"><i>17</i>Due diligence</a>
+    <a href="#s14" data-txt="economia do ativo dcf tir valuation brownfield"><i>16</i>Economia do ativo</a>
+    <a href="#s15" data-txt="mapa de riscos"><i>17</i>Mapa de riscos</a>
     <div class="grp" data-grp="6">Referência</div>
     <a href="#s17" data-txt="fontes de dados catálogo aneel ons ccee ana epe"><i>18</i>Fontes de dados</a>
     <a href="#s18" data-txt="glossário vocabulário termos"><i>19</i>Glossário</a>
-    <a href="#s19" data-txt="teste seu conhecimento quiz"><i>20</i>Teste seu conhecimento</a>
   </nav>
 </aside>
 <div class="main">
@@ -664,6 +665,19 @@ footer b span{color:var(--verde)}
   </div>
 
   <div id="dbui" style="display:none">
+    <div class="card" id="novbox" style="display:none;margin-bottom:14px;padding:0;overflow:hidden;
+      border-left:4px solid var(--verde)">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:14px;
+        padding:16px 24px;flex-wrap:wrap">
+        <div>
+          <b style="font-family:var(--mono);font-size:11.5px;letter-spacing:.12em;text-transform:uppercase;
+            color:var(--verde-esc)">Mudanças no cadastro da ANEEL</b>
+          <div id="novresumo" style="font-size:15.5px;color:var(--cinza-esc);margin-top:5px"></div>
+        </div>
+        <button class="btn" id="b_nov">Ver o que mudou</button>
+      </div>
+      <div id="novdet" style="display:none;padding:0 24px 20px;border-top:1px solid var(--cinza-cl)"></div>
+    </div>
     <div class="card" style="margin-bottom:14px;padding:18px 24px;background:var(--dark);border-color:var(--dark3)">
       <div id="resumo" style="font-size:16px;color:#fff;line-height:1.5"></div>
     </div>
@@ -753,7 +767,12 @@ footer b span{color:var(--verde)}
                   <option value="gf">garantia física</option>
                 </select>
               </div>
-              <svg id="dbmap" viewBox="0 0 760 780" style="width:100%;height:auto"></svg>
+              <div id="zoombar" style="display:none;align-items:center;gap:12px;margin-bottom:10px;
+                padding:8px 14px;background:var(--bg2);border-radius:5px;border-left:3px solid var(--verde)">
+                <span id="zoomlab" style="font-size:13.5px;color:var(--cinza-esc);font-weight:600"></span>
+                <button class="btn" id="b_zoomout" style="margin-left:auto;padding:5px 12px;font-size:12px">Ver Brasil inteiro</button>
+              </div>
+              <svg id="dbmap" viewBox="0 0 760 780" style="width:100%;height:auto;transition:none"></svg>
             </div>
             <div>
               <div class="card" id="mapinfo2" style="background:var(--bg2);box-shadow:none;min-height:130px">
@@ -1116,10 +1135,80 @@ footer b span{color:var(--verde)}
 </div>
 </section>
 
+<!-- ============ CONTRATOS ============ -->
+<section id="scon" class="alt">
+<div class="wrap">
+  <div class="eyebrow">15 · Modelo de negócio</div>
+  <h2 class="sec">Como a usina é remunerada, na prática</h2>
+  <p class="lede">Existem dois eixos independentes que definem o fluxo de caixa e que muita gente confunde. O primeiro é <b>como você obteve o direito de operar</b> — concessão, autorização ou registro. O segundo é <b>como você vende a energia</b> — leilão regulado, contrato bilateral ou regime de cotas. A combinação dos dois é o modelo de negócio do ativo.</p>
+
+  <h3>Eixo 1 — o direito de operar</h3>
+  <div class="grid g3" style="margin-bottom:12px">
+    <div class="card" style="border-top:4px solid var(--cinza)">
+      <h4 style="margin-top:0">Concessão</h4>
+      <p style="font-size:14.5px;color:var(--ink2)">Hidrelétricas acima de 50 MW. Obtida por <b>licitação</b>, com prazo contratual definido e pagamento de <b>UBP</b> pelo uso do bem público. O ativo reverte ao poder concedente ao fim do prazo.</p>
+      <div class="tagrow"><span class="tag n">licitação</span><span class="tag n">UBP</span><span class="tag n">reversão</span></div>
+    </div>
+    <div class="card" style="border-top:4px solid var(--verde)">
+      <h4 style="margin-top:0">Autorização</h4>
+      <p style="font-size:14.5px;color:var(--ink2)">PCH e UHE até 50 MW. Obtida por <b>requerimento</b>, sem licitação e sem UBP, com prazo de até 35 anos. É o regime do produtor independente — o dono decide onde e a quem vender.</p>
+      <div class="tagrow"><span class="tag">requerimento</span><span class="tag">sem UBP</span><span class="tag">até 35 anos</span></div>
+    </div>
+    <div class="card" style="border-top:4px solid var(--cinza-med)">
+      <h4 style="margin-top:0">Registro</h4>
+      <p style="font-size:14.5px;color:var(--ink2)">CGH até 5 MW. Basta <b>comunicar a implantação</b> à ANEEL. Sem prazo determinado e sem processo de outorga — mas sujeita à fiscalização de segurança de barragens desde a Lei 14.066/2020.</p>
+      <div class="tagrow"><span class="tag n">comunicação</span><span class="tag n">sem prazo</span></div>
+    </div>
+  </div>
+
+  <h3>Eixo 2 — como a energia é vendida</h3>
+  <p>No ambiente regulado, o vendedor de leilão assina um <b>CCEAR</b> com as distribuidoras. <cite index="11-1">O CCEAR pode ser por disponibilidade ou por quantidade, e é celebrado pela concessionária ou autorizada de geração vencedora do processo licitatório com cada distribuidora.</cite> A escolha da modalidade decide quem carrega o risco hidrológico — e é o ponto mais importante desta seção.</p>
+
+  <div class="grid g2" style="margin:18px 0 8px">
+    <div class="card" style="border-top:4px solid var(--laranja)">
+      <div class="tag o">risco no gerador</div>
+      <h4 style="margin:12px 0 8px">CCEAR por quantidade</h4>
+      <p style="font-size:15px;color:var(--ink2)">O gerador se compromete a entregar um <b>montante fixo de energia</b>, gere ou não. <cite index="17-1">O risco hidrológico é assumido pelo vendedor: o risco de gerar mais ou menos que o contratado, com a diferença liquidada ao PLD do momento.</cite> <cite index="17-1">Se houver estiagem e a geração ficar abaixo do vendido, a receita cai e o empreendedor fica exposto a um PLD elevado no mercado de curto prazo.</cite></p>
+      <p style="font-size:14.5px;color:var(--ink2);margin:0"><cite index="17-1">É a modalidade usada por hidrelétricas nos leilões de energia nova e existente.</cite> É funcionalmente o oposto de um take-or-pay: quem promete entrega é o gerador, não quem promete comprar.</p>
+    </div>
+    <div class="card" style="border-top:4px solid var(--verde)">
+      <div class="tag">risco no comprador</div>
+      <h4 style="margin:12px 0 8px">CCEAR por disponibilidade</h4>
+      <p style="font-size:15px;color:var(--ink2)">O gerador é remunerado por <b>colocar a usina à disposição</b> do sistema, não pela energia efetivamente entregue. O risco de a geração ficar abaixo do previsto — e o custo de comprar a diferença — recai sobre a distribuidora, e daí para a tarifa.</p>
+      <p style="font-size:14.5px;color:var(--ink2);margin:0">Historicamente é a modalidade das térmicas, que precisam repassar custo de combustível. Para hidrelétrica, o padrão em leilão é quantidade.</p>
+    </div>
+  </div>
+
+  <div class="note">
+    <b>Sobre "take-or-pay":</b> a expressão vem do mercado de gás, onde o comprador paga um volume mínimo mesmo sem retirar. No setor elétrico brasileiro o desenho é diferente — o que existe são as duas modalidades de CCEAR acima e os PPAs bilaterais do mercado livre, cujas cláusulas de volume mínimo, flexibilidade e sazonalização são negociadas caso a caso. Se alguém descrever um PPA de PCH como "take-or-pay", peça o contrato: o que importa é a <b>flexibilidade contratada</b> (quanto o comprador pode variar o consumo sem penalidade) e quem paga o desvio.
+  </div>
+
+  <h3>O regime de cotas — e por que ele está desaparecendo</h3>
+  <p>Um terceiro modelo, muito específico: usinas antigas cujas concessões foram prorrogadas pela Lei 12.783/2013 passaram ao <b>regime de cotas</b>. Nele a usina não vende energia — <cite index="12-1">a remuneração cobre apenas operação e manutenção, e o risco hidrológico fica alocado ao consumidor.</cite> A garantia física é distribuída como cota às distribuidoras.</p>
+  <p>Com a capitalização da Eletrobras isso começou a ser desfeito: <cite index="12-1">boa parte das hidrelétricas sai do regime de cotas e passa ao regime de produção independente, com migração gradual ao ritmo de 20% ao ano a partir de 1º de janeiro de 2023.</cite> Para o investidor, é oferta nova entrando no mercado livre ao longo dos anos — pressão sobre preço que vale ter no modelo.</p>
+
+  <h3>Resumindo em uma tabela</h3>
+  <table>
+    <thead><tr><th style="width:23%">Modelo</th><th>Quem carrega o risco hidrológico</th><th>Previsibilidade da receita</th><th>Onde aparece</th></tr></thead>
+    <tbody>
+      <tr><td><b>CCEAR por quantidade</b></td><td>Gerador</td><td>Preço fixo e longo, mas volume exposto ao GSF</td><td>Leilões de energia nova e existente</td></tr>
+      <tr><td><b>CCEAR por disponibilidade</b></td><td>Comprador, via tarifa</td><td>Alta — remunera disponibilidade</td><td>Predominante em térmicas</td></tr>
+      <tr><td><b>PPA bilateral (ACL)</b></td><td>Negociado caso a caso</td><td>Média — prazos curtos, recontratação recorrente</td><td>Mercado livre, típico de PCH</td></tr>
+      <tr><td><b>Regime de cotas</b></td><td>Consumidor</td><td>Alta, mas remunera só O&amp;M</td><td>Concessões prorrogadas pela Lei 12.783/2013, em extinção gradual</td></tr>
+      <tr><td><b>Mercado de curto prazo</b></td><td>Gerador, integralmente</td><td>Nenhuma — liquidação ao PLD</td><td>Sobras e déficits de todo mundo</td></tr>
+    </tbody>
+  </table>
+
+  <div class="note alert">
+    <b>A pergunta que resolve a due diligence comercial:</b> pegue a carteira de contratos do ativo e responda, para cada contrato — qual o volume, qual o prazo, qual o indexador, quem é a contraparte, e <b>o que acontece se a usina gerar 15% menos que o contratado</b>. Se a resposta for "o gerador compra a diferença ao PLD", você está comprando risco hidrológico alavancado, e o preço de entrada precisa refletir isso.
+  </div>
+</div>
+</section>
+
 <!-- ============ 14 ============ -->
 <section id="s14">
 <div class="wrap">
-  <div class="eyebrow">15 · Investimento</div>
+  <div class="eyebrow">16 · Investimento</div>
   <h2 class="sec">A economia de um ativo em operação</h2>
   <p class="lede">Uma hidrelétrica madura é um título de renda variável com cara de renda fixa: receita indexada, custo operacional baixo e previsível, e um prazo que acaba. Monte o fluxo como se fosse uma debênture longa com risco hidrológico embutido.</p>
 
@@ -1205,36 +1294,13 @@ footer b span{color:var(--verde)}
 <!-- ============ 15 ============ -->
 <section id="s15" class="dark">
 <div class="wrap">
-  <div class="eyebrow">16 · Riscos</div>
+  <div class="eyebrow">17 · Riscos</div>
   <h2 class="sec">Mapa de riscos, ordenado por quem já matou deal</h2>
   <p class="lede">Clique em cada risco para ver como ele se manifesta, como medir com dado público e o que fazer a respeito. Os quatro primeiros são os que mais aparecem em post-mortem de operação hidrelétrica.</p>
   <div id="risks"></div>
 </div>
 </section>
 
-<!-- ============ 16 ============ -->
-<section id="s16">
-<div class="wrap">
-  <div class="eyebrow">17 · Processo</div>
-  <h2 class="sec">Checklist de due diligence</h2>
-  <p class="lede">Organizado por frente. Marque o que já foi coberto — o progresso fica salvo enquanto a página estiver aberta.</p>
-  <div id="ddlist"></div>
-  <div class="card" style="margin-top:24px;background:var(--bg2)">
-    <h4 style="margin-top:0">O que os dados abertos não cobrem</h4>
-    <p style="margin-bottom:10px;font-size:15px">Para calibrar expectativa antes de investir tempo em screening público, estes pontos só saem em data room:</p>
-    <div class="tagrow">
-      <span class="tag o">PPAs vigentes — preço, prazo e contraparte</span>
-      <span class="tag o">Estado real de turbina, gerador e comportas</span>
-      <span class="tag o">Batimetria e assoreamento efetivo</span>
-      <span class="tag o">Contratos de O&amp;M e seguros</span>
-      <span class="tag o">Passivo fundiário da área alagada</span>
-      <span class="tag o">Passivo trabalhista, fiscal e ambiental da SPE</span>
-      <span class="tag o">Dívida bancária não pública</span>
-      <span class="tag o">Condicionantes de licença em aberto</span>
-    </div>
-  </div>
-</div>
-</section>
 
 <!-- ============ 17 ============ -->
 <section id="s17" class="alt">
@@ -1264,15 +1330,6 @@ footer b span{color:var(--verde)}
 </div>
 </section>
 
-<!-- ============ 19 ============ -->
-<section id="s19" class="dark">
-<div class="wrap">
-  <div class="eyebrow">20 · Autoavaliação</div>
-  <h2 class="sec">Teste seu conhecimento</h2>
-  <p class="lede">Dez perguntas sobre o que realmente importa numa análise de ativo hidrelétrico. Sem pegadinha — se você acertar todas, está pronto para ler um data room.</p>
-  <div id="quiz"></div>
-</div>
-</section>
 
 <footer>
   <div class="wrap">
@@ -1703,7 +1760,7 @@ const clear=n=>{while(n.firstChild)n.removeChild(n.firstChild);};
     svg.appendChild(el('rect',{x:0,y:0,width:760,height:780,fill:'transparent'}));
     data.forEach(u=>{
       const p=el('path',{d:u.d,class:'uf',fill:palette(u),'data-uf':u.s});
-      p.addEventListener('mouseenter',()=>info(u));
+      p.addEventListener('mouseenter',()=>{window.__ultUF=u;info(u);});
       p.addEventListener('click',()=>{sel=u.s;info(u);render();});
       if(sel===u.s)p.classList.add('sel');
       svg.appendChild(p);
@@ -1714,10 +1771,22 @@ const clear=n=>{while(n.firstChild)n.removeChild(n.firstChild);};
       const n=nudge[u.s]||[0,0];
       const x=u.c[0]+n[0], y=u.c[1]+4+n[1];
       if(n[0]||n[1]) svg.appendChild(el('line',{x1:u.c[0],y1:u.c[1],x2:x-4,y2:y-4,
-        stroke:'rgba(0,0,0,.35)','stroke-width':.9}));
+        stroke:'rgba(0,0,0,.35)','stroke-width':.9,'pointer-events':'none'}));
       svg.appendChild(tx(x,y,u.s,{class:'lbl'}));
     });
     legend();
+  }
+  function statsUF(sigla){
+    const D=window.__DBALL;
+    if(!D||!D.length)return null;
+    const rs=D.filter(r=>r.uf===sigla);
+    if(!rs.length)return {n:0};
+    const por=t=>{const g=rs.filter(r=>r.tipo===t);
+      return {n:g.length,mw:g.reduce((s,r)=>s+(r.mw||0),0)};};
+    const bac={};rs.forEach(r=>{if(r.baciaCurta)bac[r.baciaCurta]=(bac[r.baciaCurta]||0)+(r.mw||0);});
+    const top=Object.entries(bac).sort((a,b)=>b[1]-a[1]).slice(0,2).map(x=>x[0]);
+    return {n:rs.length,mw:rs.reduce((s,r)=>s+(r.mw||0),0),
+      UHE:por('UHE'),PCH:por('PCH'),CGH:por('CGH'),bacias:top};
   }
   function info(u){
     $('#mtag').textContent=u.s;
@@ -1726,8 +1795,35 @@ const clear=n=>{while(n.firstChild)n.removeChild(n.firstChild);};
     if(mode==='sm')t='<b>Submercado '+SM[u.sm].n+'.</b> '+SMTXT[u.sm];
     else if(mode==='reg')t=REG[u.r].n+'.';
     else t='Órgão gestor estadual de recursos hídricos: <b>'+(ORG[u.s]||'—')+'</b>. A maioria das PCHs e CGHs está em rio de domínio estadual, então a outorga de uso da água não sai na ANA — sai aqui. É o passo mais frequentemente subestimado no cronograma de um projeto.';
+    const st=statsUF(u.s);
+    if(st){
+      if(!st.n){
+        t+='<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--cinza-cl);font-size:13.5px;color:var(--cinza-med)">'+
+          'Nenhuma usina hidrelétrica cadastrada neste estado na base SIGA.</div>';
+      }else{
+        const li=(lab,o)=>o.n?('<tr><td style="padding:2px 10px 2px 0;color:var(--ink2)">'+lab+'</td>'+
+          '<td style="padding:2px 0;font-family:var(--mono);font-weight:600">'+o.n+'</td>'+
+          '<td style="padding:2px 0 2px 10px;font-family:var(--mono);color:var(--ink2)">'+
+          (o.mw>=1000?fmt(o.mw/1000,2)+' GW':fmt(o.mw,1)+' MW')+'</td></tr>'):'';
+        t+='<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--cinza-cl)">'+
+          '<div style="font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--verde-esc);margin-bottom:6px">Parque hidrelétrico deste estado</div>'+
+          '<table style="font-size:13.5px;margin:0;width:auto"><tbody>'+
+          li('UHE',st.UHE)+li('PCH',st.PCH)+li('CGH',st.CGH)+
+          '<tr><td style="padding:5px 10px 0 0;font-weight:700;border-top:1px solid var(--cinza-cl)">Total</td>'+
+          '<td style="padding:5px 0 0;font-family:var(--mono);font-weight:700;border-top:1px solid var(--cinza-cl)">'+st.n+'</td>'+
+          '<td style="padding:5px 0 0 10px;font-family:var(--mono);font-weight:700;border-top:1px solid var(--cinza-cl)">'+
+          (st.mw>=1000?fmt(st.mw/1000,2)+' GW':fmt(st.mw,1)+' MW')+'</td></tr>'+
+          '</tbody></table>'+
+          (st.bacias.length?'<div style="font-size:12.5px;color:var(--cinza-med);margin-top:7px">Principais sub-bacias por potência: '+st.bacias.join(' · ')+'</div>':'')+
+          '<div style="font-size:12px;color:var(--cinza-med);margin-top:5px">Fonte: ANEEL/SIGA, base carregada na seção 07.</div></div>';
+      }
+    }else{
+      t+='<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--cinza-cl);font-size:13px;color:var(--cinza-med)">'+
+        'Role até a seção <b>07 · Banco de usinas</b> para carregar a base da ANEEL — os números por estado aparecem aqui automaticamente.</div>';
+    }
     $('#mtext').innerHTML=t;
   }
+  window.__refreshMapa06=()=>{if(window.__ultUF)info(window.__ultUF);};
   function legend(){
     const box=$('#maplegend'); box.innerHTML='';
     let items=[];
@@ -1896,7 +1992,9 @@ const clear=n=>{while(n.firstChild)n.removeChild(n.firstChild);};
         const rows=await fn();
         DB=rows.map(norm).filter(r=>['UHE','PCH','CGH'].includes(r.tipo)&&r.uf&&isFinite(r.mw));
         if(!DB.length)throw new Error('nenhuma hidrelétrica reconhecida no arquivo');
-        TRACE.push([l,true,f0(DB.length)+' usinas']);ORIGEM=l;pronto();return;
+        TRACE.push([l,true,f0(DB.length)+' usinas']);ORIGEM=l;
+        window.__DBALL=DB;if(window.__refreshMapa06)window.__refreshMapa06();
+        pronto();return;
       }catch(e){TRACE.push([l,false,diag(e)]);}
     }
     falhou();
@@ -1965,8 +2063,53 @@ const clear=n=>{while(n.firstChild)n.removeChild(n.firstChild);};
     try{const c=JSON.parse(localStorage.getItem('hidro_carteira')||'[]');CART=new Set(c);}catch(e){}
     montarFiltros();
     if(!fromHash())fromLocal();
-    montarFiltros();aplicar();
+    montarFiltros();aplicar();novidades();
   }
+
+  /* ---------- novidades de cadastro ---------- */
+  function novidades(){
+    const N=META&&META.novidades;
+    const box=$('#novbox');if(!box)return;
+    if(!N||(!N.novas||!N.novas.length)&&(!N.fase||!N.fase.length)&&
+       (!N.potencia||!N.potencia.length)&&(!N.dono||!N.dono.length)&&!N.removidas){
+      box.style.display='none';return;}
+    const partes=[];
+    if(N.novas&&N.novas.length)partes.push('<b style="color:var(--verde-esc)">'+N.novas.length+'</b> nova'+(N.novas.length>1?'s':'')+' no cadastro');
+    if(N.fase&&N.fase.length)partes.push('<b>'+N.fase.length+'</b> mudaram de fase');
+    if(N.potencia&&N.potencia.length)partes.push('<b>'+N.potencia.length+'</b> mudaram de potência');
+    if(N.dono&&N.dono.length)partes.push('<b>'+N.dono.length+'</b> mudaram de proprietário');
+    if(N.removidas)partes.push('<b>'+N.removidas+'</b> saíram da base');
+    $('#novresumo').innerHTML=partes.join(' · ')+
+      (N.desde?'<span style="color:var(--cinza-med);font-size:13.5px"> — desde a coleta de '+N.desde+'</span>':'');
+    box.style.display='';
+    const abrirFicha=ceg=>{const r=DB.find(x=>x.ceg===ceg);if(r)ficha(r);};
+    const lista=(titulo,arr,fmtLinha,cor)=>{
+      if(!arr||!arr.length)return '';
+      return '<div style="margin-top:16px"><div class="flab" style="color:'+cor+'">'+titulo+' — '+arr.length+'</div>'+
+        '<div style="max-height:230px;overflow-y:auto">'+arr.slice(0,120).map(x=>
+        '<div class="novrow" data-ceg="'+(x.ceg||'')+'" style="display:flex;gap:12px;align-items:baseline;'+
+        'padding:6px 0;border-bottom:1px solid #EEEAE6;font-size:13.5px;cursor:pointer">'+
+        '<span style="font-family:var(--mono);font-weight:700;color:'+(TCOL[x.tipo]||'#8C8279')+';width:38px;flex:0 0 auto">'+(x.tipo||'')+'</span>'+
+        '<span style="width:30px;flex:0 0 auto;color:var(--ink2)">'+(x.uf||'')+'</span>'+
+        '<span style="flex:1;min-width:0;font-weight:600;color:var(--cinza-esc);overflow:hidden;'+
+        'text-overflow:ellipsis;white-space:nowrap">'+(x.nome||'—')+'</span>'+
+        '<span style="color:var(--ink2);text-align:right;flex:0 0 auto">'+fmtLinha(x)+'</span></div>').join('')+
+        (arr.length>120?'<p style="font-size:12.5px;color:var(--cinza-med);margin:8px 0 0">e mais '+(arr.length-120)+'</p>':'')+
+        '</div></div>';};
+    $('#novdet').innerHTML=
+      lista('Entraram no cadastro',N.novas,x=>(x.mw!=null?fmt(x.mw,2)+' MW':'')+(x.fase?' · '+x.fase:''),'var(--verde-esc)')+
+      lista('Mudaram de fase',N.fase,x=>x.de+' → <b>'+x.para+'</b>','var(--verde-esc)')+
+      lista('Mudaram de potência',N.potencia,x=>fmt(x.de,2)+' → <b>'+fmt(x.para,2)+' MW</b>','var(--verde-esc)')+
+      lista('Mudaram de proprietário',N.dono,x=>'ver ficha','var(--verde-esc)')+
+      (N.removidas?'<p style="font-size:13.5px;color:var(--ink2);margin-top:16px"><b>'+N.removidas+
+        '</b> registro(s) deixaram de constar na base entre as duas coletas.</p>':'')+
+      '<p class="src" style="margin-top:14px">Comparação literal entre o snapshot atual e o anterior da base SIGA. '+
+      'Nada é inferido: são apenas os campos que a ANEEL publicou diferentes entre duas coletas. '+
+      'Clique em qualquer linha para abrir a ficha da usina.</p>';
+    $$('.novrow',$('#novdet')).forEach(d=>d.onclick=()=>{if(d.dataset.ceg)abrirFicha(d.dataset.ceg);});
+  }
+  $('#b_nov').onclick=()=>{const d=$('#novdet');const ab=d.style.display==='none';
+    d.style.display=ab?'block':'none';$('#b_nov').textContent=ab?'Ocultar':'Ver o que mudou';};
   $('#breload').onclick=()=>{$('#dbui').style.display='none';load();};
   $('#bupload').onclick=()=>$('#fcsv').click();
   $('#fcsv').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;
@@ -1975,7 +2118,9 @@ const clear=n=>{while(n.firstChild)n.removeChild(n.firstChild);};
     rd.onload=()=>{try{
       DB=parseCSV(rd.result).map(norm).filter(r=>['UHE','PCH','CGH'].includes(r.tipo)&&r.uf&&isFinite(r.mw));
       if(!DB.length)throw new Error('nenhuma linha de UHE, PCH ou CGH reconhecida');
-      ORIGEM='CSV enviado · '+f.name;META={};pronto();
+      ORIGEM='CSV enviado · '+f.name;META={};
+      window.__DBALL=DB;if(window.__refreshMapa06)window.__refreshMapa06();
+      pronto();
     }catch(err){setStat('Não consegui ler o arquivo','Verifique se é o CSV do SIGA. '+err.message,'var(--laranja)');}};
     rd.readAsText(f,'utf-8');});
   function lerArquivo(f){
@@ -2187,8 +2332,31 @@ const clear=n=>{while(n.firstChild)n.removeChild(n.firstChild);};
   $$('[data-vis]').forEach(b=>b.onclick=()=>{$$('[data-vis]').forEach(x=>x.classList.remove('on'));
     b.classList.add('on');S.vis=b.dataset.vis;mapa();});
   $('#mapmetric').onchange=mapa;
+  $('#b_zoomout').onclick=()=>{S.sel.clear();S.page=0;geoOpts();aplicar();};
 
   /* ---------- mapa ---------- */
+  function bboxDe(sig){
+    const svg=$('#dbmap');const p=$('path[data-uf="'+sig+'"]',svg);
+    if(!p||!p.getBBox)return null;
+    try{const b=p.getBBox();return (b.width&&b.height)?b:null;}catch(e){return null;}
+  }
+  function ajustarZoom(){
+    const svg=$('#dbmap');if(!svg)return;
+    const alvos=(S.geo==='uf'&&S.sel.size)?[...S.sel]:[];
+    if(!alvos.length){svg.setAttribute('viewBox','0 0 760 780');$('#zoombar').style.display='none';return;}
+    let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9,achou=false;
+    alvos.forEach(s=>{const b=bboxDe(s);if(!b)return;achou=true;
+      x0=Math.min(x0,b.x);y0=Math.min(y0,b.y);x1=Math.max(x1,b.x+b.width);y1=Math.max(y1,b.y+b.height);});
+    if(!achou){svg.setAttribute('viewBox','0 0 760 780');$('#zoombar').style.display='none';return;}
+    const pad=Math.max(18,(x1-x0)*0.10,(y1-y0)*0.10);
+    x0-=pad;y0-=pad;x1+=pad;y1+=pad;
+    // manter proporção do quadro original (760x780)
+    let w=x1-x0,hh=y1-y0;const alvo=760/780;
+    if(w/hh>alvo){const nh=w/alvo;y0-=(nh-hh)/2;hh=nh;}else{const nw=hh*alvo;x0-=(nw-w)/2;w=nw;}
+    svg.setAttribute('viewBox',[x0.toFixed(1),y0.toFixed(1),w.toFixed(1),hh.toFixed(1)].join(' '));
+    const zb=$('#zoombar');zb.style.display='flex';
+    $('#zoomlab').textContent='Ampliado em '+alvos.join(', ');
+  }
   function mapa(){
     const svg=$('#dbmap');if(!svg||!window.UFDATA)return;clear(svg);
     const agg={};L.forEach(r=>{const a=agg[r.uf]||(agg[r.uf]={n:0,mw:0,gf:0});a.n++;a.mw+=r.mw||0;a.gf+=r.gf||0;});
@@ -2201,7 +2369,7 @@ const clear=n=>{while(n.firstChild)n.removeChild(n.firstChild);};
       let fill='#EDE9E5';
       if(!pontos&&v>0)fill='rgba(100,180,0,'+(0.13+Math.pow(v/max,.55)*0.87).toFixed(3)+')';
       if(pontos)fill=a?'#E8E4DF':'#F2EFEC';
-      const p=el('path',{d:u.d,class:'uf',fill,style:'cursor:pointer'});
+      const p=el('path',{d:u.d,class:'uf',fill,'data-uf':u.s,style:'cursor:pointer'});
       p.addEventListener('mouseenter',()=>{$('#dbmaplabel').innerHTML=a?
         ('<b>'+u.n+'</b> — '+f0(a.n)+' usinas · '+fmt(a.mw,1)+' MW'+(a.gf>0?' · GF '+fmt(a.gf,1)+' MWmed':'')):
         ('<b>'+u.n+'</b> — nenhuma usina no filtro');});
@@ -2209,20 +2377,23 @@ const clear=n=>{while(n.firstChild)n.removeChild(n.firstChild);};
         S.sel.has(u.s)?S.sel.delete(u.s):S.sel.add(u.s);S.page=0;geoOpts();aplicar();});
       svg.appendChild(p);});
     if(pontos){
+      const vb=(svg.getAttribute('viewBox')||'0 0 760 780').split(/\s+/).map(Number);
+      const kz=Math.max(.28,Math.min(1,(vb[2]||760)/760));
       const mm=Math.max(...L.map(r=>r.mw||0),1);
       const pts=L.filter(r=>r.xy).sort((a,b)=>b.mw-a.mw);
       pts.forEach(r=>{
-        const rad=Math.max(2.2,Math.min(17,2.2+Math.sqrt(r.mw/mm)*15));
+        const rad=Math.max(2.2,Math.min(17,2.2+Math.sqrt(r.mw/mm)*15))*kz;
         const c=el('circle',{cx:r.xy[0].toFixed(1),cy:r.xy[1].toFixed(1),r:rad.toFixed(1),class:'pt',
-          fill:TCOL[r.tipo],'fill-opacity':.72,stroke:'#fff','stroke-width':.7});
+          fill:TCOL[r.tipo],'fill-opacity':.72,stroke:'#fff','stroke-width':(.7*kz).toFixed(2)});
         c.addEventListener('mouseenter',()=>{$('#dbmaplabel').innerHTML='<b>'+r.nome+'</b> · '+r.tipo+
           '<br>'+fmt(r.mw,2)+' MW · '+r.mun+'<br><span style="color:var(--cinza-med);font-size:12.5px">'+
           (r.bacia||'sub-bacia não informada')+'</span>';});
         c.addEventListener('click',e=>{e.stopPropagation();ficha(r);});
         svg.appendChild(c);});
+      const lx=vb[0]+18*kz, ly=vb[1]+vb[3]-70*kz;
       [['UHE',0],['PCH',1],['CGH',2]].forEach(([t,i])=>{
-        svg.appendChild(el('circle',{cx:46,cy:722+i*20,r:6,fill:TCOL[t],'fill-opacity':.72}));
-        svg.appendChild(tx(60,722+i*20+4,t,{'font-size':12,fill:'#6E6259'}));});
+        svg.appendChild(el('circle',{cx:lx,cy:ly+i*20*kz,r:6*kz,fill:TCOL[t],'fill-opacity':.72}));
+        svg.appendChild(tx(lx+14*kz,ly+i*20*kz+4*kz,t,{'font-size':(12*kz).toFixed(1),fill:'#6E6259'}));});
       const semc=L.length-pts.length;
       $('#semcoord').innerHTML=semc?('<b style="color:var(--laranja)">'+f0(semc)+'</b> de '+f0(L.length)+
         ' usinas do filtro não têm coordenada publicada no SIGA e por isso não aparecem no mapa.'):
@@ -2239,6 +2410,8 @@ const clear=n=>{while(n.firstChild)n.removeChild(n.firstChild);};
         {'font-size':11,fill:'#8C8279','text-anchor':'end'}));
       $('#semcoord').innerHTML='Modo agregado por estado. Troque para <b>Usinas no território</b> para ver ponto a ponto.';
     }
+    requestAnimationFrame(()=>{const antes=svg.getAttribute('viewBox');ajustarZoom();
+      if(svg.getAttribute('viewBox')!==antes&&S.vis==='pontos')mapa();});
   }
 
   /* ---------- muro de vencimentos ---------- */
@@ -2980,70 +3153,6 @@ const clear=n=>{while(n.firstChild)n.removeChild(n.firstChild);};
   });
 })();
 
-/* ============ 16 checklist DD ============ */
-(function(){
-  const box=$('#ddlist'); if(!box)return;
-  const DD=[
-    ['Regulatório e outorga',['Ato de outorga vigente, com prazo e potência autorizada','Histórico de alterações e transferências de controle aprovadas pela ANEEL','Portaria de garantia física vigente e histórico de revisões','Adesão à repactuação do risco hidrológico da Lei 14.052/2020','Regularidade perante a CCEE e situação de adimplência','Autos de infração e processos de fiscalização abertos','Situação da TFSEE e demais encargos setoriais']],
-    ['Hidrologia e recursos hídricos',['Outorga de direito de uso da água vigente, federal ou estadual','Vazão remanescente ecológica exigida e comprovação de cumprimento','Série histórica do Projeto Básico validada contra estações do HidroWeb','Curva de permanência recalculada de forma independente','Geração verificada dos últimos cinco anos versus garantia física','Estudo de sedimentos e batimetria recente do reservatório']],
-    ['Segurança de barragens',['FSB do ciclo corrente protocolado','Classe, categoria de risco e dano potencial vigentes','Plano de Segurança da Barragem completo','Plano de Ação de Emergência, quando exigível','Relatórios das duas últimas inspeções regulares','Revisão Periódica de Segurança de Barragem','Registro de anomalias abertas com orçamento de tratamento','Instrumentação instalada e histórico de leituras']],
-    ['Técnico e operacional',['Ensaio de rendimento das unidades geradoras','Laudo de espessura de parede do conduto forçado','Ensaios elétricos do gerador — índice de polarização e descargas parciais','Histórico de indisponibilidade forçada e programada','Plano de manutenção e contratos de O&M vigentes','Idade e histórico de intervenção nos equipamentos principais','Capacidade real do ponto de conexão e MUST contratado']],
-    ['Ambiental e fundiário',['Licença de Operação vigente e condicionantes em aberto','Programas ambientais em execução e passivos identificados','CAR regular e ausência de embargos','Matrículas de toda a poligonal da área de influência','Servidões constituídas e registradas','Sobreposição com unidades de conservação, terras indígenas ou quilombolas','Manifestação do IPHAN quando aplicável']],
-    ['Comercial e financeiro',['PPAs vigentes — preço, prazo, indexador e contraparte','Perfil de vencimento da carteira de contratos','Rating e exposição de crédito das contrapartes','Exposição histórica ao mercado de curto prazo','Dívida existente, covenants e garantias constituídas','Debêntures incentivadas emitidas e escrituras','Demonstrações financeiras auditadas dos últimos três exercícios','Passivos trabalhistas, fiscais e previdenciários da SPE','Seguros contratados e adequação de cobertura']]
-  ];
-  let SALVO={};
-  try{SALVO=JSON.parse(localStorage.getItem('hidro_dd')||'{}');}catch(e){}
-  const totalItens=DD.reduce((s,[,i])=>s+i.length,0);
-  const feitosTop=document.createElement('div');
-  feitosTop.className='card'; feitosTop.style.cssText='margin-bottom:16px;padding:16px 22px;display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap';
-  feitosTop.innerHTML='<span style="font-size:14.5px;color:var(--ink2)">Progresso salvo neste navegador — some conforme você marca os itens.</span>'+
-    '<span style="display:flex;gap:10px;align-items:center"><span class="v" id="ddtop" style="font-family:var(--mono);font-size:22px;color:var(--verde-esc);font-weight:700">0/'+totalItens+'</span>'+
-    '<button class="btn" id="ddreset">Reiniciar checklist</button></span>';
-  box.appendChild(feitosTop);
-  DD.forEach(([g,items],gi)=>{
-    const c=document.createElement('div');
-    c.className='card'; c.style.marginBottom='16px';
-    c.innerHTML='<div style="display:flex;justify-content:space-between;align-items:baseline;gap:16px;margin-bottom:12px">'+
-      '<h4 style="margin:0">'+g+'</h4><span class="chip" data-count="'+gi+'">0/'+items.length+'</span></div>';
-    items.forEach((it,ii)=>{
-      const id='dd'+gi+'_'+ii;
-      const row=document.createElement('label');
-      row.style.cssText='display:flex;gap:11px;align-items:flex-start;padding:7px 0;font-size:15px;cursor:pointer;border-bottom:1px solid #EEEAE6';
-      const checked=!!SALVO[id];
-      row.innerHTML='<input type="checkbox" id="'+id+'" data-g="'+gi+'"'+(checked?' checked':'')+' style="margin-top:4px;accent-color:#97D700;width:16px;height:16px;flex:0 0 auto"><span>'+it+'</span>';
-      if(checked)row.style.opacity=.5;
-      c.appendChild(row);
-    });
-    box.appendChild(c);
-  });
-  function atualizarContadores(){
-    let feitos=0;
-    DD.forEach(([g,items],gi)=>{
-      const all=$$('input[data-g="'+gi+'"]',box);
-      const n=all.filter(x=>x.checked).length; feitos+=n;
-      const chip=$('[data-count="'+gi+'"]',box);
-      chip.textContent=n+'/'+all.length;
-      chip.style.background=n===all.length?'var(--verde)':'rgba(151,215,0,.15)';
-      chip.style.color=n===all.length?'#2b3d00':'var(--verde-esc)';
-    });
-    $('#ddtop').textContent=feitos+'/'+totalItens;
-  }
-  box.addEventListener('change',e=>{
-    if(e.target.type!=='checkbox')return;
-    e.target.parentElement.style.opacity=e.target.checked?.5:1;
-    SALVO[e.target.id]=e.target.checked;
-    try{localStorage.setItem('hidro_dd',JSON.stringify(SALVO));}catch(err){}
-    atualizarContadores();
-  });
-  $('#ddreset').onclick=()=>{
-    if(!confirm('Reiniciar o checklist inteiro? Isso apaga o progresso salvo.'))return;
-    SALVO={};try{localStorage.removeItem('hidro_dd');}catch(e){}
-    $$('input[type=checkbox]',box).forEach(i=>{i.checked=false;i.parentElement.style.opacity=1;});
-    atualizarContadores();
-  };
-  atualizarContadores();
-})();
-
 /* ============ 17 fontes ============ */
 (function(){
   const box=$('#sources'); if(!box)return;
@@ -3172,89 +3281,6 @@ const clear=n=>{while(n.firstChild)n.removeChild(n.firstChild);};
   render('');
 })();
 
-/* ============ 19 quiz ============ */
-(function(){
-  const box=$('#quiz'); if(!box)return;
-  const Q=[
-    {q:'Uma usina hidrelétrica com 42 MW de potência instalada tem direito ao desconto na TUSD e TUST do art. 26 da Lei 9.427/1996?',
-     o:['Não, o limite é 30 MW','O limite de potência é 50 MW, mas depende da data da outorga','Somente se for classificada como PCH','Somente no ambiente regulado'],a:1,
-     e:'O limite de potência do art. 26 para hidrelétricas é 50 MW — não 30 MW. Mas a Lei 14.120/2021 condicionou o benefício às regras de transição: para novos empreendimentos, o requerimento de outorga tinha prazo, e o desconto vale pelo prazo da outorga, sem renovação. Potência é condição necessária, não suficiente.'},
-    {q:'O que determina o teto de energia que uma hidrelétrica pode vender por contrato?',
-     o:['A potência instalada','O fator de capacidade histórico','A garantia física','A vazão outorgada'],a:2,
-     e:'A garantia física, em MW médios, fixada por portaria do MME. Potência instalada define enquadramento regulatório, não capacidade de venda.'},
-    {q:'Em um período com GSF de 0,85, o que acontece com uma usina do MRE totalmente contratada?',
-     o:['Recebe energia secundária','Precisa comprar 15% no mercado de curto prazo ao PLD','Tem a garantia física revisada automaticamente','Nada, o MRE cobre integralmente'],a:1,
-     e:'Com GSF abaixo de 1, cada participante recebe uma fração da sua garantia física e precisa comprar a diferença no MCP ao PLD para honrar contratos.'},
-    {q:'Por que usar a média histórica do PLD subestima a exposição de GSF?',
-     o:['Porque o PLD tem piso regulatório','Porque GSF baixo e PLD alto têm a mesma causa e ocorrem juntos','Porque o PLD é apurado por submercado','Porque a média histórica é sempre alta'],a:1,
-     e:'Ambos decorrem de pouca água. O gerador compra mais energia exatamente quando ela está mais cara. Modele a correlação, não médias independentes.'},
-    {q:'Para uma PCH classificada como Tipo III pelo ONS, o dado de geração publicado no portal do ONS é:',
-     o:['Medição do SCDE','Previsão de geração, não medição','Média do conjunto de usinas','Idêntico ao da CCEE'],a:1,
-     e:'Usinas Tipo III não têm relacionamento operativo com o ONS e os dados publicados são previsões. Para geração medida, use CCEE e SCDE.'},
-    {q:'A Lei 15.269/2025 alterou o desconto no fio de que forma?',
-     o:['Extinguiu o desconto para todos','Vedou o desconto a novos consumidores que migrarem ao ACL','Elevou o desconto de 50% para 100%','Transferiu o desconto ao gerador'],a:1,
-     e:'Quem já estava no ACL mantém o benefício. Novos migrantes perdem, e ampliações de demanda acima do patamar de 24.11.2025 também. A base elegível vira estoque fechado.'},
-    {q:'Qual documento define o prazo pelo qual você poderá operar o ativo adquirido?',
-     o:['A licença de operação','O ato de outorga','O contrato de conexão','A portaria de garantia física'],a:1,
-     e:'O ato de outorga. O prazo remanescente é a duration real do fluxo de caixa — prorrogação é opção, não premissa.'},
-    {q:'A Lei 14.066/2020 trouxe qual mudança relevante para CGHs?',
-     o:['Elevou o limite de potência para 10 MW','Estendeu a fiscalização de segurança de barragens às usinas registradas','Extinguiu a exigência de outorga','Criou o registro por comunicação'],a:1,
-     e:'Passou a alcançar as usinas registradas, trazendo as CGHs para dentro do regime de segurança de barragens fiscalizado pela ANEEL.'},
-    {q:'Em uma carteira de cinco PCHs na mesma sub-bacia, o principal problema é:',
-     o:['Custo de O&M elevado','Ausência de diversificação — uma estiagem regional afeta todas juntas','Excesso de exposição ao ACR','Impossibilidade de participar do MRE'],a:1,
-     e:'Diversificação real exige bacias com regimes de chuva descorrelacionados e, idealmente, submercados diferentes. Número de ativos não é diversificação.'},
-    {q:'Qual destes NÃO é obtido em fontes públicas abertas?',
-     o:['Classe e categoria de risco da barragem','Potência fiscalizada e prazo de outorga','Preço e prazo dos PPAs vigentes','Geração verificada mensal da usina'],a:2,
-     e:'Contratos bilaterais não são públicos. É o principal driver de valor do ativo e só aparece em data room — por isso o screening público serve para priorizar, não para precificar.'}
-  ];
-  let ans={};
-  Q.forEach((item,i)=>{
-    const d=document.createElement('div');
-    d.className='card'; d.style.marginBottom='14px';
-    d.innerHTML='<div style="display:flex;gap:14px;align-items:baseline;margin-bottom:14px">'+
-      '<span style="font-family:var(--mono);color:var(--verde);font-size:15px;font-weight:700">'+String(i+1).padStart(2,'0')+'</span>'+
-      '<b style="font-size:16.5px;color:#fff;line-height:1.4">'+item.q+'</b></div>'+
-      '<div class="opts" style="display:flex;flex-direction:column;gap:8px"></div>'+
-      '<div class="fb" style="display:none;margin-top:14px;padding:13px 16px;border-radius:5px;font-size:14.5px"></div>';
-    const opts=$('.opts',d), fb=$('.fb',d);
-    item.o.forEach((o,j)=>{
-      const b=document.createElement('button');
-      b.className='btn'; b.style.cssText='text-align:left;text-transform:none;letter-spacing:0;font-family:Barlow,sans-serif;font-size:15px;font-weight:400;padding:11px 15px';
-      b.textContent=o;
-      b.onclick=()=>{
-        if(ans[i]!==undefined)return;
-        ans[i]=j;
-        $$('button',opts).forEach((x,k)=>{
-          if(k===item.a){x.style.borderColor='#97D700';x.style.background='rgba(151,215,0,.14)';x.style.color='#fff';}
-          else if(k===j){x.style.borderColor='#FF671F';x.style.background='rgba(255,103,31,.12)';x.style.color='#fff';}
-          x.disabled=true;x.style.cursor='default';
-        });
-        const ok=j===item.a;
-        fb.style.display='block';
-        fb.style.background=ok?'rgba(151,215,0,.09)':'rgba(255,198,0,.09)';
-        fb.style.color='rgba(255,255,255,.82)';
-        fb.innerHTML='<b style="color:'+(ok?'#97D700':'#FFC600')+'">'+(ok?'Correto.':'Não é essa.')+'</b> '+item.e;
-        score();
-      };
-      opts.appendChild(b);
-    });
-    box.appendChild(d);
-  });
-  const sc=document.createElement('div');
-  sc.className='card'; sc.style.cssText='text-align:center;padding:26px';
-  sc.innerHTML='<div class="v" id="qsc" style="font-family:var(--mono);font-size:44px;font-weight:700;color:var(--verde);line-height:1">0/10</div>'+
-    '<div id="qmsg" style="font-size:15px;color:var(--cinza-med);margin-top:10px">Responda as questões acima.</div>';
-  box.appendChild(sc);
-  function score(){
-    const n=Object.keys(ans).length, ok=Object.entries(ans).filter(([i,j])=>+j===Q[i].a).length;
-    $('#qsc').textContent=ok+'/10';
-    const m=$('#qmsg');
-    if(n<10)m.textContent=n+' de 10 respondidas.';
-    else if(ok>=9)m.textContent='Você domina o essencial. Está pronto para ler um data room de hidrelétrica.';
-    else if(ok>=7)m.textContent='Boa base. Revise as seções de MRE, garantia física e marco regulatório.';
-    else m.textContent='Vale reler as seções 10, 11 e 12 — são onde mora a receita do ativo.';
-  }
-})();
 </script>
 </body>
 </html>
