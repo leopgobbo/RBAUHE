@@ -706,6 +706,8 @@ footer b span{color:var(--verde)}
           <div class="flab" style="margin-top:16px">Fase</div><div id="f_fase" class="chipset"></div>
           <div class="flab" style="margin-top:16px">Classe de barragem</div>
           <div id="f_bar" class="chipset"></div>
+          <div class="flab" style="margin-top:16px">Categoria de risco</div>
+          <div id="f_cri" class="chipset"></div>
         </div>
         <div>
           <div class="flab">Recorte territorial</div>
@@ -804,6 +806,25 @@ footer b span{color:var(--verde)}
           <h4 style="margin:0 0 4px">Qualidade e cobertura dos dados</h4>
           <p style="font-size:14.5px;color:var(--ink2);max-width:75ch">Ferramenta de research honesta mostra os buracos. Estes são os campos ausentes no conjunto filtrado — cada lacuna é uma pergunta a levar para o data room.</p>
           <div id="qual"></div>
+        </div>
+        <div class="pane" data-pane="prop" style="display:none">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;gap:14px;flex-wrap:wrap;margin-bottom:4px">
+            <h4 style="margin:0">Buscar por proprietário</h4>
+            <span style="font-size:13px;color:var(--cinza-med)" id="propcount"></span>
+          </div>
+          <p style="font-size:14.5px;color:var(--ink2);max-width:78ch;margin-bottom:14px">Todos os agentes que constam como proprietários no SIGA, com o portfólio completo de cada um. A potência é ponderada pelo percentual de participação declarado — quem tem 50% de uma usina de 20 MW conta 10 MW.</p>
+          <div class="maprow" style="grid-template-columns:380px 1fr;gap:22px;align-items:start">
+            <div>
+              <input type="search" id="propq" placeholder="Digite o nome do proprietário…" style="margin-bottom:10px">
+              <div style="display:flex;gap:7px;margin-bottom:10px;flex-wrap:wrap">
+                <button class="btn on" data-psort="mw" style="padding:5px 11px;font-size:12px">por potência</button>
+                <button class="btn" data-psort="n" style="padding:5px 11px;font-size:12px">por nº de usinas</button>
+                <button class="btn" data-psort="nome" style="padding:5px 11px;font-size:12px">A–Z</button>
+              </div>
+              <div id="proplist" style="max-height:620px;overflow-y:auto;border:1px solid var(--cinza-cl);border-radius:5px"></div>
+            </div>
+            <div id="propdet"></div>
+          </div>
         </div>
         <div class="pane" data-pane="comp" style="display:none">
           <div style="display:flex;justify-content:space-between;align-items:baseline;gap:14px;flex-wrap:wrap;margin-bottom:4px">
@@ -1935,6 +1956,8 @@ const clear=n=>{while(n.firstChild)n.removeChild(n.firstChild);};
     ['velha','Mais de 40 anos','v','Entrou em operação há mais de 40 anos. Candidata natural a repotenciação e modernização.',r=>r.idade!=null&&r.idade>40],
     ['solo','Dono de 1 ativo só','v','Todos os proprietários desta usina têm apenas ela na base. Perfil clássico de alvo de consolidação.',r=>r._solo],
     ['clsA','Barragem classe A','o','Classificada na classe A pela ANEEL — maior exigência regulatória e capex de conformidade relevante.',r=>r.cls==='A'],
+    ['criAlto','Risco alto','o','Categoria de risco alta na fiscalização de barragens da ANEEL.',r=>/ALT/i.test(r.cri||'')],
+    ['dpaAlto','Dano potencial alto','y','Dano potencial associado alto: ruptura teria consequências severas a jusante.',r=>/ALT/i.test(r.dpa||'')],
     ['semxy','Sem coordenada','n','Sem coordenada publicada no SIGA. Não aparece no mapa de pontos.',r=>!r.xy]
   ];
   const FCOL={o:['#FFE0D1','#8a3208'],y:['#FFF0BF','#7a5c00'],v:['#CDEA80','#4a5c00'],n:['#E4E0DB','#6E6259']};
@@ -2139,7 +2162,7 @@ const clear=n=>{while(n.firstChild)n.removeChild(n.firstChild);};
 
   /* ---------- estado ---------- */
   const S={tipo:new Set(['UHE','PCH','CGH']),fase:new Set(),geo:'uf',sel:new Set(),bacia:'',
-    cls:new Set(),flag:new Set(),min:null,max:null,q:'',venc:'',ai:null,af:null,
+    cls:new Set(),cri:new Set(),flag:new Set(),min:null,max:null,q:'',venc:'',ai:null,af:null,
     sort:'mw',dir:-1,page:0,own:null,tab:'mapa',vis:'pontos'};
   const PER=40; let CART=new Set();
 
@@ -2150,8 +2173,9 @@ const clear=n=>{while(n.firstChild)n.removeChild(n.firstChild);};
       s=>{s.tipo=new Set(['PCH']);s.fase=new Set(['Operação']);s.venc='10';}],
     ['Candidatas a repotenciação','PCH e UHE em operação há mais de 40 anos',
       s=>{s.tipo=new Set(['PCH','UHE']);s.fase=new Set(['Operação']);s.flag=new Set(['velha']);}],
-    ['Risco de barragem','Usinas classificadas na classe A pela ANEEL',
-      s=>{s.tipo=new Set(['UHE','PCH','CGH']);s.fase=new Set(['Operação']);s.cls=new Set(['A']);}],
+    ['Risco de barragem','Categoria de risco alta ou acidente registrado na fiscalização da ANEEL',
+      s=>{s.tipo=new Set(['UHE','PCH','CGH']);s.fase=new Set(['Operação']);s.cri=new Set(['ALTO']);}],
+
     ['Faixa incentivada 30–50 MW','UHE por autorização na faixa que ainda carrega o desconto do art. 26',
       s=>{s.tipo=new Set(['UHE']);s.fase=new Set(['Operação']);s.min=30;s.max=50;}],
     ['Parque do Sul','Tudo em operação nos três estados do Sul',
@@ -2183,6 +2207,10 @@ const clear=n=>{while(n.firstChild)n.removeChild(n.firstChild);};
     const temCls=DB.some(r=>r.cls);
     $('#f_bar').parentElement.style.display=temCls?'':'none';
     if(temCls)chips($('#f_bar'),[['A','Classe A'],['B','Classe B'],['C','Classe C']],S.cls,()=>{montarFiltros();aplicar();});
+    const temCri=DB.some(r=>r.cri);
+    $('#f_cri').parentElement.querySelectorAll('.flab')[2]&&($('#f_cri').previousElementSibling.style.display=temCri?'':'none');
+    $('#f_cri').style.display=temCri?'':'none';
+    if(temCri)chips($('#f_cri'),[['ALTO','Alto'],['MEDIO','Médio'],['BAIXO','Baixo']],S.cri,()=>{montarFiltros();aplicar();});
     chips($('#f_flag'),FLAGS.map(f=>[f[0],f[1],f[3]]),S.flag,()=>{montarFiltros();aplicar();});
     geoOpts();
     const bs=[...new Set(DB.map(r=>r.bacia).filter(Boolean))].sort();
@@ -2205,7 +2233,7 @@ const clear=n=>{while(n.firstChild)n.removeChild(n.firstChild);};
     $('#f_min').value=S.min??'';$('#f_max').value=S.max??'';
     $('#f_ai').value=S.ai??'';$('#f_af').value=S.af??'';$('#f_q').value=S.q;}
   function limpar(quiet){
-    S.tipo=new Set(['UHE','PCH','CGH']);S.fase=new Set();S.sel.clear();S.cls.clear();S.flag.clear();
+    S.tipo=new Set(['UHE','PCH','CGH']);S.fase=new Set();S.sel.clear();S.cls.clear();S.cri.clear();S.flag.clear();
     S.bacia='';S.min=S.max=S.ai=S.af=null;S.q='';S.venc='';S.own=null;S.page=0;S.geo='uf';
     sincronizar();if(!quiet){montarFiltros();aplicar();}}
   $('#b_clear').onclick=()=>limpar();
@@ -2258,6 +2286,8 @@ const clear=n=>{while(n.firstChild)n.removeChild(n.firstChild);};
       if(S.tipo.size&&!S.tipo.has(r.tipo))return false;
       if(S.fase.size&&!S.fase.has(r.fase))return false;
       if(S.cls.size&&!S.cls.has(r.cls))return false;
+      if(S.cri.size){const c=(r.cri||'').toUpperCase().replace('É','E');
+        if(![...S.cri].some(k=>c.startsWith(k.slice(0,4))))return false;}
       if(S.bacia&&r.bacia!==S.bacia)return false;
       if(S.sel.size){const k=S.geo==='uf'?r.uf:(S.geo==='reg'?r.reg:r.sm);if(!S.sel.has(k))return false;}
       if(S.min!=null&&r.mw<S.min)return false;
@@ -2299,7 +2329,7 @@ const clear=n=>{while(n.firstChild)n.removeChild(n.firstChild);};
     const f=SORTS[S.sort];
     L.sort((a,b)=>{const x=f(a),y=f(b);
       return (typeof x==='string'?x.localeCompare(y,'pt-BR'):x-y)*S.dir;});
-    resumo();kpis();mapa();wall();hist();vint();qual();owners_();tabela();carteira();comparar();
+    resumo();kpis();mapa();wall();hist();vint();qual();owners_();tabela();carteira();comparar();proprietarios();
     $('#fcount').textContent=f0(L.length)+' de '+f0(DB.length)+' usinas';
     if(location.hash.includes('db='))history.replaceState(null,'','#'+toHash());
     salvarEstado();
@@ -2323,7 +2353,7 @@ const clear=n=>{while(n.firstChild)n.removeChild(n.firstChild);};
       d.innerHTML='<div class="v" style="font-size:26px">'+v+'</div><div class="l">'+l+'</div>';box.appendChild(d);});}
 
   /* ---------- abas ---------- */
-  const TABS=[['mapa','Mapa'],['venc','Vencimentos'],['dist','Distribuição'],['qual','Qualidade dos dados'],['comp','Comparar']];
+  const TABS=[['mapa','Mapa'],['prop','Proprietários'],['venc','Vencimentos'],['dist','Distribuição'],['qual','Qualidade dos dados'],['comp','Comparar']];
   (function(){const t=$('#tabs');TABS.forEach(([k,l])=>{const b=document.createElement('button');
     b.textContent=l;b.className=S.tab===k?'on':'';
     b.onclick=()=>{S.tab=k;$$('#tabs button').forEach((x,i)=>x.className=TABS[i][0]===k?'on':'');
@@ -2470,7 +2500,8 @@ const clear=n=>{while(n.firstChild)n.removeChild(n.firstChild);};
       ['Prazo de outorga (fim de vigência)',L.filter(r=>r.rem!=null).length],
       ['Sub-bacia identificada',L.filter(r=>r.bacia).length],
       ['Proprietário identificado',L.filter(r=>r.prop.length).length],
-      ['Classificação de barragem (FSB)',L.filter(r=>r.cls).length]];
+      ['Classificação de barragem (FSB)',L.filter(r=>r.cls).length],
+      ['Categoria de risco (FSB)',L.filter(r=>r.cri).length]];
     const box=$('#qual');box.innerHTML='';
     its.forEach(([l,v])=>{const p=v/n*100;
       const d=document.createElement('div');
@@ -2485,6 +2516,138 @@ const clear=n=>{while(n.firstChild)n.removeChild(n.firstChild);};
       'Campo em branco no SIGA aparece como travessão na tabela e nunca é substituído por estimativa. '+
       'A classificação de barragem só existe se o cruzamento com o conjunto FSB da ANEEL tiver casado a chave — '+
       'a ausência aqui não significa ausência de barragem, apenas que a junção automática não encontrou correspondência.</p>');}
+
+  /* ---------- explorador de proprietários ---------- */
+  const PS={q:'',sort:'mw',sel:null};
+  const semAcento=s=>(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase();
+  let AGENTES=null;
+  function montarAgentes(){
+    const ag={};
+    DB.forEach(r=>r.prop.forEach(p=>{
+      const a=ag[p.n]||(ag[p.n]={nome:p.n,usinas:[],mw:0,mwTot:0,n:0});
+      a.usinas.push({r,pct:p.p||100});
+      a.mw+=(r.mw||0)*(p.p||100)/100; a.mwTot+=r.mw||0; a.n++;}));
+    AGENTES=Object.values(ag);
+    // raiz do nome, para sugerir agentes do mesmo grupo
+    AGENTES.forEach(a=>{a.raiz=semAcento(a.nome).replace(/[^A-Z0-9 ]/g,' ')
+      .split(/\s+/).filter(w=>w.length>2&&!['LTDA','EIRELI','PARTICIPACOES','ENERGIA','ENERGETICA',
+      'GERACAO','ELETRICA','HOLDING','INVESTIMENTOS','EMPREENDIMENTOS','PARTICIPACOES','SPE',
+      'CENTRAIS','HIDRELETRICA','HIDRELETRICAS','USINA','COMPANHIA','INDUSTRIA','COMERCIO'].includes(w))
+      .slice(0,2).join(' ');});
+  }
+  function listaAgentes(){
+    if(!AGENTES)montarAgentes();
+    const q=semAcento(PS.q).trim();
+    let L=AGENTES.filter(a=>!q||semAcento(a.nome).includes(q));
+    L.sort((x,y)=>PS.sort==='nome'?x.nome.localeCompare(y.nome,'pt-BR'):
+      (PS.sort==='n'?y.n-x.n:y.mw-x.mw));
+    $('#propcount').textContent=f0(AGENTES.length)+' agentes na base'+(q?' · '+f0(L.length)+' no filtro':'');
+    const box=$('#proplist');box.innerHTML='';
+    if(!L.length){box.innerHTML='<p style="padding:18px;font-size:14px;color:var(--cinza-med);margin:0">Nenhum proprietário encontrado.</p>';return;}
+    const max=Math.max(...L.map(a=>a.mw),1);
+    L.slice(0,300).forEach(a=>{
+      const d=document.createElement('div');
+      d.style.cssText='padding:9px 13px;border-bottom:1px solid #EEEAE6;cursor:pointer;transition:.12s'+
+        (PS.sel===a.nome?';background:rgba(151,215,0,.14)':'');
+      d.innerHTML='<div style="display:flex;gap:10px;align-items:baseline">'+
+        '<span style="flex:1;min-width:0;font-weight:600;font-size:13.5px;color:var(--cinza-esc);'+
+        'overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+a.nome+'</span>'+
+        '<span class="num" style="font-size:13px;color:var(--ink2);flex:0 0 auto">'+fmt(a.mw,1)+' MW</span></div>'+
+        '<div style="display:flex;gap:8px;align-items:center;margin-top:3px">'+
+        '<span style="height:4px;border-radius:2px;background:var(--verde);width:'+Math.max(3,a.mw/max*120)+'px"></span>'+
+        '<span style="font-size:11.5px;color:var(--cinza-med)">'+a.n+(a.n>1?' usinas':' usina')+'</span></div>';
+      d.onclick=()=>{PS.sel=a.nome;listaAgentes();detalheAgente(a);};
+      box.appendChild(d);});
+    if(L.length>300)box.insertAdjacentHTML('beforeend',
+      '<p style="padding:12px;font-size:12.5px;color:var(--cinza-med);margin:0">Mostrando os 300 primeiros. Refine a busca.</p>');
+  }
+  function detalheAgente(a){
+    const box=$('#propdet');
+    const us=a.usinas.map(u=>u.r);
+    const porTipo=t=>{const g=us.filter(r=>r.tipo===t);
+      return {n:g.length,mw:g.reduce((s,r)=>s+(r.mw||0),0)};};
+    const gf=us.reduce((s,r)=>s+(r.gf||0),0);
+    const cr=us.filter(r=>r.rem!=null&&r.rem>=0);
+    const wrem=cr.length?cr.reduce((s,r)=>s+r.rem*r.mw,0)/cr.reduce((s,r)=>s+r.mw,0):null;
+    const ufs={},bac={};
+    us.forEach(r=>{ufs[r.uf]=(ufs[r.uf]||0)+(r.mw||0);
+      if(r.baciaCurta)bac[r.baciaCurta]=(bac[r.baciaCurta]||0)+(r.mw||0);});
+    const hh=o=>{const t=Object.values(o).reduce((x,y)=>x+y,0)||1;
+      return Math.round(Object.values(o).reduce((s,v)=>s+Math.pow(v/t*100,2),0));};
+    const hb=hh(bac),jud=hb>2500?['var(--laranja)','concentrada']:(hb>1500?['#b08600','moderada']:['var(--verde-esc)','diluída']);
+    const irmaos=AGENTES.filter(x=>x.nome!==a.nome&&x.raiz&&x.raiz===a.raiz);
+    const barra=(o,cor)=>{const e=Object.entries(o).sort((x,y)=>y[1]-x[1]).slice(0,8);
+      const mx=e.length?e[0][1]:1;
+      return e.map(([k,v])=>'<div style="display:flex;align-items:center;gap:9px;padding:3px 0;font-size:13px">'+
+        '<span style="width:44px;flex:0 0 auto;color:var(--ink2)">'+k+'</span>'+
+        '<span style="height:9px;border-radius:2px;background:'+cor+';width:'+Math.max(4,v/mx*150)+'px"></span>'+
+        '<span class="num" style="color:var(--cinza-med);font-size:12.5px">'+fmt(v,1)+'</span></div>').join('');};
+    box.innerHTML=
+      '<div class="card" style="margin-bottom:14px">'+
+        '<div style="display:flex;justify-content:space-between;gap:14px;align-items:flex-start;flex-wrap:wrap">'+
+          '<h3 style="margin:0;font-size:21px;line-height:1.2;flex:1;min-width:200px">'+a.nome+'</h3>'+
+          '<button class="btn" id="p_filtrar">Filtrar o banco por este agente</button></div>'+
+        '<div class="grid g4 keep" style="gap:10px;margin-top:16px">'+
+          '<div class="kpi" style="padding:13px 15px"><div class="v" style="font-size:23px">'+a.n+'</div><div class="l">usinas</div></div>'+
+          '<div class="kpi" style="padding:13px 15px"><div class="v" style="font-size:23px">'+fmt(a.mw,1)+'</div><div class="l">MW ponderados<br>pela participação</div></div>'+
+          '<div class="kpi" style="padding:13px 15px"><div class="v" style="font-size:23px">'+(gf>0?fmt(gf,1):'—')+'</div><div class="l">GF somada (MWmed)</div></div>'+
+          '<div class="kpi" style="padding:13px 15px"><div class="v" style="font-size:23px">'+(wrem!=null?fmt(wrem,1):'—')+'</div><div class="l">outorga média (anos)</div></div>'+
+        '</div>'+
+        '<div class="grid g3" style="gap:20px;margin-top:18px">'+
+          '<div><div class="flab">Por tipo</div>'+
+            ['UHE','PCH','CGH'].map(t=>{const o=porTipo(t);return o.n?
+            '<div style="display:flex;justify-content:space-between;font-size:13.5px;padding:3px 0">'+
+            '<span style="font-family:var(--mono);font-weight:700;color:'+TCOL[t]+'">'+t+'</span>'+
+            '<span class="num" style="color:var(--ink2)">'+o.n+' · '+fmt(o.mw,1)+' MW</span></div>':'';}).join('')+'</div>'+
+          '<div><div class="flab">Por estado (MW)</div>'+barra(ufs,'#64B400')+'</div>'+
+          '<div><div class="flab">Por sub-bacia (MW)</div>'+barra(bac,'#8C8279')+
+            '<div style="margin-top:9px;font-size:12.5px;color:'+jud[0]+'"><b>HHI de bacia: '+hb+'</b> — '+jud[1]+'</div></div>'+
+        '</div>'+
+        (irmaos.length?'<div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--cinza-cl)">'+
+          '<div class="flab">Possíveis agentes do mesmo grupo</div>'+
+          '<div style="display:flex;gap:7px;flex-wrap:wrap">'+irmaos.slice(0,8).map(x=>
+          '<button class="btn irmao" data-n="'+x.nome.replace(/"/g,'&quot;')+'" style="padding:5px 11px;font-size:12px;text-transform:none;letter-spacing:0">'+
+          x.nome+' · '+fmt(x.mw,1)+' MW</button>').join('')+'</div>'+
+          '<p style="font-size:12px;color:var(--cinza-med);margin:8px 0 0">Agrupamento por semelhança de nome, apenas sugestivo — o SIGA não publica estrutura societária de grupo.</p></div>':'')+
+      '</div>'+
+      '<div class="card" style="padding:0;overflow:hidden">'+
+        '<div style="overflow-x:auto"><table style="margin:0;min-width:760px"><thead><tr>'+
+        '<th>Empreendimento</th><th>Tipo</th><th>UF</th><th class="num">Part.</th><th class="num">MW</th>'+
+        '<th class="num">GF</th><th class="num">Outorga rest.</th><th>Barragem</th><th>Fase</th></tr></thead><tbody>'+
+        a.usinas.sort((x,y)=>y.r.mw-x.r.mw).map(({r,pct})=>
+          '<tr class="plin" data-ceg="'+r.ceg+'" style="cursor:pointer">'+
+          '<td class="wrap"><b>'+r.nome+'</b><br><span style="font-family:var(--mono);font-size:11px;color:var(--cinza-med)">'+r.mun+'</span></td>'+
+          '<td><span style="font-family:var(--mono);font-weight:700;color:'+TCOL[r.tipo]+'">'+r.tipo+'</span></td>'+
+          '<td>'+r.uf+'</td><td class="num">'+fmt(pct,0)+'%</td>'+
+          '<td class="num"><b>'+fmt(r.mw,r.mw<1?3:2)+'</b></td>'+
+          '<td class="num">'+(r.gf!=null?fmt(r.gf,2):'—')+'</td>'+
+          '<td class="num" style="color:'+(r.rem==null?'var(--cinza-med)':(r.rem<0?'var(--laranja)':(r.rem<10?'#b08600':'var(--ink)')))+'">'+
+            (r.rem==null?'—':(r.rem<0?'vencida':r.rem+' anos'))+'</td>'+
+          '<td>'+(r.cls?'<span class="flag" style="background:'+({A:'#FFE0D1',B:'#FFF0BF',C:'#CDEA80'}[r.cls]||'#E4E0DB')+
+            ';color:'+({A:'#8a3208',B:'#7a5c00',C:'#4a5c00'}[r.cls]||'#6E6259')+'">'+r.cls+'</span>':'—')+'</td>'+
+          '<td>'+r.fase+'</td></tr>').join('')+
+        '</tbody></table></div></div>';
+    $('#p_filtrar').onclick=()=>{S.own=a.nome;S.page=0;
+      $$('#tabs button').forEach((x,i)=>x.className=TABS[i][0]==='mapa'?'on':'');
+      $$('.pane').forEach(p=>p.style.display=p.dataset.pane==='mapa'?'':'none');
+      S.tab='mapa';aplicar();$('#dbtable').scrollIntoView({block:'start'});};
+    $$('.plin',box).forEach(t=>t.onclick=()=>{const r=DB.find(x=>x.ceg===t.dataset.ceg);if(r)ficha(r);});
+    $$('.irmao',box).forEach(bt=>bt.onclick=()=>{const x=AGENTES.find(y=>y.nome===bt.dataset.n);
+      if(x){PS.sel=x.nome;PS.q='';$('#propq').value='';listaAgentes();detalheAgente(x);}});
+  }
+  $('#propq').addEventListener('input',e=>{PS.q=e.target.value;listaAgentes();});
+  $$('[data-psort]').forEach(b=>b.onclick=()=>{$$('[data-psort]').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on');PS.sort=b.dataset.psort;listaAgentes();});
+  function proprietarios(){
+    if(!DB.length)return;
+    listaAgentes();
+    if(!PS.sel){
+      $('#propdet').innerHTML='<div class="card" style="background:var(--bg2);box-shadow:none;text-align:center;padding:52px 24px">'+
+        '<p style="font-size:15.5px;color:var(--ink2);margin:0 0 6px"><b>Selecione um proprietário na lista ao lado</b></p>'+
+        '<p style="font-size:14px;color:var(--cinza-med);margin:0">Ou digite o nome na busca. Você verá o portfólio completo do agente: '+
+        'usinas, potência ponderada, garantia física, prazo médio de outorga e concentração por bacia.</p></div>';
+    }
+  }
 
   /* ---------- comparação lado a lado ---------- */
   function comparar(){
@@ -2583,9 +2746,12 @@ const clear=n=>{while(n.firstChild)n.removeChild(n.firstChild);};
       const tr=document.createElement('tr');
       const rt=r.rem==null?'—':(r.rem<0?'vencida':r.rem+' anos');
       const rc=r.rem==null?'var(--cinza-med)':(r.rem<0?'var(--laranja)':(r.rem<10?'#b08600':'var(--ink)'));
-      const cls=r.cls?'<span class="flag" style="background:'+
+      let cls=r.cls?'<span class="flag" style="background:'+
         ({A:'#FFE0D1',B:'#FFF0BF',C:'#CDEA80'}[r.cls]||'#E4E0DB')+';color:'+
-        ({A:'#8a3208',B:'#7a5c00',C:'#4a5c00'}[r.cls]||'#6E6259')+'">'+r.cls+'</span>':'—';
+        ({A:'#8a3208',B:'#7a5c00',C:'#4a5c00'}[r.cls]||'#6E6259')+'">'+r.cls+'</span>':'';
+      if(r.cri)cls+='<span class="flag" style="background:'+(/ALT/i.test(r.cri)?'#FFE0D1':(/MED/i.test(r.cri)?'#FFF0BF':'#E4E0DB'))+
+        ';color:'+(/ALT/i.test(r.cri)?'#8a3208':(/MED/i.test(r.cri)?'#7a5c00':'#6E6259'))+'" title="Categoria de risco">'+r.cri.slice(0,5)+'</span>';
+      if(!cls)cls='—';
       const fl=flagsDe(r).slice(0,3).map(f=>'<span class="flag" style="background:'+FCOL[f[2]][0]+
         ';color:'+FCOL[f[2]][1]+'" title="'+f[3].replace(/"/g,'')+'">'+f[1]+'</span>').join('');
       tr.innerHTML='<td><button class="star'+(CART.has(r.ceg)?' on':'')+'" data-ceg="'+r.ceg+'">★</button></td>'+
@@ -2691,11 +2857,15 @@ const clear=n=>{while(n.firstChild)n.removeChild(n.firstChild);};
         linha('Entrada em operação',r.ano?r.ano+(r.idade!=null?' · '+r.idade+' anos':''):'—')+
         linha('Vigência da outorga',(r.ini||'—')+' a '+(r.fim||'—'))+
         linha('Sub-bacia',r.bacia||'—')+
-        (r.cls?linha('Classe da barragem (FSB)',r.cls):'')+
-        (r.cri?linha('Categoria de risco',r.cri):'')+
-        (r.dpa?linha('Dano potencial associado',r.dpa):'')+
         linha('Coordenadas',r.lat&&r.lon?fmt(r.lat,5)+', '+fmt(r.lon,5):'não publicadas')+
       '</tbody></table>'+
+      ((r.cls||r.cri||r.dpa)?
+        '<div class="flab">Segurança de barragens — fiscalização ANEEL</div>'+
+        '<table style="font-size:14px;margin-bottom:18px"><tbody>'+
+        (r.cls?linha('Classe',r.cls):'')+
+        (r.cri?linha('Categoria de risco',/ALT/i.test(r.cri)?'<span style="color:var(--laranja)">'+r.cri+'</span>':r.cri):'')+
+        (r.dpa?linha('Dano potencial associado',/ALT/i.test(r.dpa)?'<span style="color:#b08600">'+r.dpa+'</span>':r.dpa):'')+
+        '</tbody></table>':'')+
       '<div class="flab">Composição societária declarada</div>'+
       '<table style="font-size:14px;margin-bottom:18px"><tbody>'+
         (r.prop.length?r.prop.map(p=>linha(fmt(p.p,2)+'%',p.n)).join(''):linha('—','não informado'))+
