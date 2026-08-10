@@ -294,7 +294,14 @@ def main():
     log(f"SIGA: {len(usinas)} usinas hidrelétricas · {origem}")
 
     fsb_diag = {}
-    fsb = baixar_fsb(fsb_diag)
+    try:
+        fsb = baixar_fsb(fsb_diag)
+    except Exception as e:
+        import traceback
+        fsb_diag["erro"] = f"exceção: {type(e).__name__}: {e}"
+        log("FSB: " + fsb_diag["erro"])
+        traceback.print_exc()
+        fsb = {}
     casadas = 0
     por_chave = {"NUC": 0, "USI": 0}
     for u in usinas:
@@ -335,8 +342,12 @@ def main():
     dest.parent.mkdir(parents=True, exist_ok=True)
 
     # ---- detectar novidades comparando com o snapshot anterior ----
-    novidades = detectar_novidades(dest, usinas)
-    saida["novidades"] = novidades
+    try:
+        saida["novidades"] = detectar_novidades(dest, usinas)
+    except Exception as e:
+        log(f"novidades: falhou ({e}) — seguindo sem comparação")
+        saida["novidades"] = {"desde": None, "novas": [], "fase": [],
+                              "potencia": [], "dono": [], "removidas": 0}
 
     dest.write_text(json.dumps(saida, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     print(f"OK — {len(usinas)} usinas em {dest} ({dest.stat().st_size/1e6:.1f} MB)")
@@ -344,5 +355,17 @@ def main():
         print(f"    {t}: {por_tipo[t]}")
 
 
+def _protegido():
+    import traceback
+    try:
+        main()
+    except SystemExit:
+        raise
+    except Exception:
+        log("ERRO FATAL na coleta — traceback completo abaixo:")
+        traceback.print_exc()
+        sys.exit(1)
+
+
 if __name__ == "__main__":
-    main()
+    _protegido()
