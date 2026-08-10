@@ -36,10 +36,24 @@ jobs:
       - name: Baixar base SIGA da ANEEL
         id: dados
         continue-on-error: true
-        run: python3 scripts/atualizar_dados.py
+        run: |
+          set -o pipefail
+          python3 scripts/atualizar_dados.py 2>&1 | tee /tmp/coleta.log
+          echo "RC=${PIPESTATUS[0]}" >> $GITHUB_ENV
 
       - name: Conferir o arquivo gerado
         run: |
+          {
+            echo "### Log da coleta"
+            echo ""
+            echo '```'
+            tail -n 40 /tmp/coleta.log 2>/dev/null || echo "(sem log)"
+            echo '```'
+          } >> $GITHUB_STEP_SUMMARY
+          if [ "${RC:-1}" != "0" ]; then
+            echo "::error::A coleta terminou com erro (código ${RC:-?}). Veja o log acima."
+            echo "> **A coleta falhou.** O arquivo de dados anterior foi mantido." >> $GITHUB_STEP_SUMMARY
+          fi
           if [ ! -s data/usinas.json ]; then
             echo "### Falha na coleta" >> $GITHUB_STEP_SUMMARY
             echo "O arquivo \`data/usinas.json\` não foi gerado. O site vai subir mesmo assim e pedirá o CSV manualmente." >> $GITHUB_STEP_SUMMARY
@@ -75,8 +89,19 @@ jobs:
           fi
 
       - uses: actions/configure-pages@v5
+        if: always()
       - uses: actions/upload-pages-artifact@v3
+        if: always()
         with:
           path: '.'
       - id: deploy
+        if: always()
         uses: actions/deploy-pages@v4
+
+      - name: Falhar se a coleta não funcionou
+        if: always()
+        run: |
+          if [ "${RC:-1}" != "0" ]; then
+            echo "A coleta de dados falhou nesta execução — veja o resumo do job."
+            exit 1
+          fi
