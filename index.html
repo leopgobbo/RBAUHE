@@ -202,7 +202,7 @@ footer b span{color:var(--verde)}
 .star{background:none;border:0;cursor:pointer;font-size:16px;line-height:1;color:var(--cinza-cl);padding:2px 4px}
 .star.on{color:var(--amarelo)}
 .star:hover{color:var(--verde-esc)}
-.flag{display:inline-block;font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;padding:2px 6px;
+.flag{display:inline-block;font-family:var(--mono);font-size:10.5px;letter-spacing:.04em;padding:2px 5px;
   border-radius:3px;margin:1px 3px 1px 0;font-weight:600;white-space:nowrap}
 .ficha{position:fixed;inset:0;background:rgba(34,30,26,.55);z-index:200;display:none;
   justify-content:flex-end;backdrop-filter:blur(2px)}
@@ -220,8 +220,25 @@ footer b span{color:var(--verde)}
 .chipset button.on{background:var(--verde);border-color:var(--verde);color:#2b3d00;font-weight:600}
 #dbtable th{cursor:pointer;user-select:none;white-space:nowrap;font-size:12.5px}
 #dbtable th:hover{background:var(--cinza)}
-#dbtable td{font-size:13.5px;padding:7px 12px;white-space:nowrap}
-#dbtable td.wrap{white-space:normal;min-width:200px}
+#dbtable td{font-size:13.5px;padding:7px 8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#dbtable td.wrap{white-space:normal;overflow:visible}
+#dbtable th{padding:9px 8px}
+#dbtable col.c-star{width:3%}
+#dbtable col.c-nome{width:19%}
+#dbtable col.c-tipo{width:4.5%}
+#dbtable col.c-uf{width:3.5%}
+#dbtable col.c-mw{width:8%}
+#dbtable col.c-gf{width:8%}
+#dbtable col.c-ratio{width:5.5%}
+#dbtable col.c-ano{width:5.5%}
+#dbtable col.c-rem{width:8.5%}
+#dbtable col.c-cls{width:6.5%}
+#dbtable col.c-fase{width:8.5%}
+#dbtable col.c-prop{width:19.5%}
+#dbtable td.num{padding-right:10px}
+@media(max-width:1000px){#dbtable{min-width:940px}}
+#dbtable td.prop{white-space:normal;line-height:1.35;font-size:13px}
+#dbtable td.nome b{display:block;line-height:1.25}
 .num{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums}
 #dbmap path.uf{stroke:#fff;stroke-width:.7}
 .ownrow{display:flex;align-items:center;gap:10px;padding:5px 0;cursor:pointer;font-size:13.5px}
@@ -258,6 +275,20 @@ footer b span{color:var(--verde)}
   .g2,.g3,.g4{grid-template-columns:1fr}
   .g4.keep{grid-template-columns:1fr 1fr}
   body{font-size:16px}
+}
+@media print{
+  @page{margin:14mm}
+  .rail,.topbar,.prog,#fclose,#flink,#fprint,#fcart{display:none!important}
+  .ficha{position:static!important;display:block!important;background:none!important;
+    backdrop-filter:none!important;inset:auto!important}
+  .fichainner{width:100%!important;height:auto!important;box-shadow:none!important;
+    padding:0!important;overflow:visible!important}
+  body>.shell>.main>section,body>.shell>.main>header,footer{display:none!important}
+  body{background:#fff!important;font-size:11pt}
+  .kpi{break-inside:avoid;border-left-color:#6E6259!important}
+  table{break-inside:avoid}
+  .ownrow{break-inside:avoid}
+  a[href]:after{content:""}
 }
 @media(prefers-reduced-motion:reduce){
   *{animation:none!important;transition:none!important}
@@ -839,7 +870,7 @@ footer b span{color:var(--verde)}
 
     <div class="card" style="padding:0;overflow:hidden;margin-bottom:16px">
       <div style="overflow-x:auto">
-        <table id="dbtable" style="margin:0;min-width:1140px">
+        <table id="dbtable" style="margin:0;width:100%;table-layout:fixed">
           <thead><tr id="dbhead"></tr></thead><tbody id="dbbody"></tbody>
         </table>
       </div>
@@ -2086,6 +2117,9 @@ const clear=n=>{while(n.firstChild)n.removeChild(n.firstChild);};
     try{const c=JSON.parse(localStorage.getItem('hidro_carteira')||'[]');CART=new Set(c);}catch(e){}
     montarFiltros();
     if(!fromHash())fromLocal();
+    const mu=(location.hash||'').match(/#usina=([^&]+)/);
+    if(mu){const alvo=DB.find(x=>x.ceg===decodeURIComponent(mu[1]));
+      if(alvo)setTimeout(()=>ficha(alvo),300);}
     montarFiltros();aplicar();novidades();
   }
 
@@ -2709,11 +2743,18 @@ const clear=n=>{while(n.firstChild)n.removeChild(n.firstChild);};
       d.onclick=()=>{S.own=S.own===n?null:n;S.page=0;aplicar();};box.appendChild(d);});}
 
   /* ---------- tabela ---------- */
+  const dec=n=>n==null?0:(n<1?3:(n<100?2:0));
   const HEAD=[['','',''],['nome','Empreendimento'],['tipo','Tipo'],['uf','UF'],['mw','MW'],
-    ['gf','GF MWmed'],['ratio','GF/Pot'],['ano','Operação'],['rem','Outorga rest.'],
-    ['cls','Barragem'],['fase','Fase'],['mun','Município'],['bacia','Sub-bacia'],['prop','Proprietários']];
+    ['gf','GF MWmed'],['ratio','GF/Pot'],['ano','Oper.'],['rem','Outorga rest.'],
+    ['cls','Barr.'],['fase','Fase'],['prop','Proprietário']];
   function flagsDe(r){return FLAGS.filter(f=>f[4](r));}
+  const COLW=['star','nome','tipo','uf','mw','gf','ratio','ano','rem','cls','fase','prop'];
   function tabela(){
+    const tb0=$('#dbtable');
+    let cg=$('colgroup',tb0);
+    if(!cg){cg=document.createElement('colgroup');
+      COLW.forEach(k=>{const c=document.createElement('col');c.className='c-'+k;cg.appendChild(c);});
+      tb0.insertBefore(cg,tb0.firstChild);}
     const hd=$('#dbhead');hd.innerHTML='';
     HEAD.forEach(([k,l])=>{const th=document.createElement('th');
       th.textContent=k?l+(S.sort===k?(S.dir>0?' ▲':' ▼'):''):'★';
@@ -2737,7 +2778,7 @@ const clear=n=>{while(n.firstChild)n.removeChild(n.firstChild);};
       if(S.venc)at.push('outorga ≤ '+S.venc+' anos');
       if(S.own)at.push('proprietário');
       if(S.q)at.push('busca "'+S.q+'"');
-      tb.innerHTML='<tr><td colspan="14" style="padding:34px 30px;text-align:center;color:var(--ink2)">'+
+      tb.innerHTML='<tr><td colspan="12" style="padding:34px 30px;text-align:center;color:var(--ink2)">'+
         '<b style="color:var(--cinza-esc);font-size:16px">Nenhuma usina atende a esta combinação.</b><br>'+
         '<span style="font-size:14px">Filtros ativos — '+at.join(' · ')+'</span><br>'+
         '<button class="btn" style="margin-top:14px" onclick="document.getElementById(\'b_clear\').click()">Limpar filtros</button>'+
@@ -2750,22 +2791,25 @@ const clear=n=>{while(n.firstChild)n.removeChild(n.firstChild);};
         ({A:'#FFE0D1',B:'#FFF0BF',C:'#CDEA80'}[r.cls]||'#E4E0DB')+';color:'+
         ({A:'#8a3208',B:'#7a5c00',C:'#4a5c00'}[r.cls]||'#6E6259')+'">'+r.cls+'</span>':'';
       if(r.cri)cls+='<span class="flag" style="background:'+(/ALT/i.test(r.cri)?'#FFE0D1':(/MED/i.test(r.cri)?'#FFF0BF':'#E4E0DB'))+
-        ';color:'+(/ALT/i.test(r.cri)?'#8a3208':(/MED/i.test(r.cri)?'#7a5c00':'#6E6259'))+'" title="Categoria de risco">'+r.cri.slice(0,5)+'</span>';
+        ';color:'+(/ALT/i.test(r.cri)?'#8a3208':(/MED/i.test(r.cri)?'#7a5c00':'#6E6259'))+
+        '" title="Categoria de risco: '+r.cri+'">'+r.cri.slice(0,3)+'</span>';
       if(!cls)cls='—';
       const fl=flagsDe(r).slice(0,3).map(f=>'<span class="flag" style="background:'+FCOL[f[2]][0]+
         ';color:'+FCOL[f[2]][1]+'" title="'+f[3].replace(/"/g,'')+'">'+f[1]+'</span>').join('');
       tr.innerHTML='<td><button class="star'+(CART.has(r.ceg)?' on':'')+'" data-ceg="'+r.ceg+'">★</button></td>'+
-        '<td class="wrap"><b class="abrir" style="cursor:pointer;color:var(--cinza-esc);border-bottom:1px dotted var(--cinza-med)">'+(r.nome||'—')+'</b><br>'+
-          '<span style="font-family:var(--mono);font-size:11px;color:var(--cinza-med)">'+r.ceg+'</span>'+
+        '<td class="wrap nome"><b class="abrir" style="cursor:pointer;color:var(--cinza-esc);border-bottom:1px dotted var(--cinza-med)">'+(r.nome||'—')+'</b><br>'+
+          '<span style="font-size:11.5px;color:var(--cinza-med)" title="'+(r.bacia||'').replace(/"/g,'')+'">'+(r.mun||'—')+'</span>'+
           (fl?'<br>'+fl:'')+'</td>'+
         '<td><span style="font-family:var(--mono);font-weight:700;color:'+TCOL[r.tipo]+'">'+r.tipo+'</span></td>'+
-        '<td>'+r.uf+'</td><td class="num"><b>'+fmt(r.mw,r.mw<1?3:2)+'</b></td>'+
-        '<td class="num">'+(r.gf!=null?fmt(r.gf,3):'—')+'</td>'+
+        '<td>'+r.uf+'</td><td class="num"><b>'+fmt(r.mw,dec(r.mw))+'</b></td>'+
+        '<td class="num">'+(r.gf!=null?fmt(r.gf,dec(r.gf)):'—')+'</td>'+
         '<td class="num">'+(r.ratio!=null?fmt(r.ratio*100,0)+'%':'—')+'</td>'+
         '<td class="num">'+(r.ano||'—')+'</td>'+
         '<td class="num" style="color:'+rc+'">'+rt+'</td><td>'+cls+'</td><td>'+r.fase+'</td>'+
-        '<td class="wrap">'+(r.mun||'—')+'</td><td class="wrap">'+(r.baciaCurta||'—')+'</td>'+
-        '<td class="wrap">'+(r.prop.map(p=>fmt(p.p,0)+'% '+p.n).join('<br>')||'—')+'</td>';
+        '<td class="prop" title="'+r.propRaw.replace(/"/g,'')+'">'+
+          (r.prop.length?('<span>'+fmt(r.prop[0].p,0)+'% '+r.prop[0].n+'</span>'+
+            (r.prop.length>1?'<br><span style="color:var(--cinza-med);font-size:12px">+ '+(r.prop.length-1)+
+            ' agente'+(r.prop.length>2?'s':'')+'</span>':'')):'—')+'</td>';
       $('.abrir',tr).onclick=()=>ficha(r);
       $('.star',tr).onclick=e=>{e.stopPropagation();
         if(!CART.has(r.ceg)&&CART.size>=6){alert('Compare até 6 usinas por vez. Remova uma antes de adicionar outra.');return;}
@@ -2819,6 +2863,36 @@ const clear=n=>{while(n.firstChild)n.removeChild(n.firstChild);};
     $('#b_cartclear').onclick=()=>{CART.clear();comparar();salvarEstado();aplicar();};}
 
   /* ---------- ficha da usina ---------- */
+  function percentis(r){
+    const pares=DB.filter(x=>x.tipo===r.tipo&&x.fase===r.fase);
+    if(pares.length<8)return '';
+    const pct=(val,campo)=>{
+      if(val==null)return null;
+      const v=pares.map(x=>x[campo]).filter(x=>x!=null&&isFinite(x)).sort((a,b)=>a-b);
+      if(v.length<8)return null;
+      let i=0;while(i<v.length&&v[i]<val)i++;
+      return Math.round(i/v.length*100);
+    };
+    const itens=[['Potência','mw',r.mw,x=>fmt(x,dec(x))+' MW'],
+      ['GF sobre potência','ratio',r.ratio,x=>fmt(x*100,0)+'%'],
+      ['Outorga remanescente','rem',r.rem,x=>x+' anos'],
+      ['Idade','idade',r.idade,x=>x+' anos']];
+    const linhas=itens.map(([lab,campo,val,f])=>{
+      const p=pct(val,campo); if(p==null)return '';
+      const cor=p>=70?'var(--verde-esc)':(p>=30?'var(--cinza)':'#b08600');
+      return '<div style="display:flex;align-items:center;gap:11px;padding:6px 0;font-size:13.5px">'+
+        '<span style="width:150px;flex:0 0 auto;color:var(--ink2)">'+lab+'</span>'+
+        '<span style="flex:1;height:7px;background:var(--cinza-cl);border-radius:4px;position:relative;min-width:70px">'+
+          '<span style="position:absolute;left:0;top:0;height:100%;width:'+p+'%;background:'+cor+';border-radius:4px"></span></span>'+
+        '<span class="num" style="width:118px;flex:0 0 auto;text-align:right;color:var(--cinza-esc);font-weight:600">'+
+          f(val)+' <span style="color:var(--cinza-med);font-weight:400">· p'+p+'</span></span></div>';
+    }).filter(Boolean).join('');
+    if(!linhas)return '';
+    return '<div class="flab">Comparação com os pares</div>'+
+      '<p style="font-size:13px;color:var(--ink2);margin:0 0 6px">Posição desta usina entre as '+
+      f0(pares.length)+' '+r.tipo+'s na mesma fase. "p61" significa que ela supera 61% das concorrentes naquele indicador.</p>'+
+      linhas+'<div style="height:18px"></div>';
+  }
   function ficha(r){
     const fl=flagsDe(r);
     const irmas=DB.filter(x=>x.ceg!==r.ceg&&x.prop.some(p=>r.prop.some(q=>q.n===p.n)));
@@ -2830,7 +2904,10 @@ const clear=n=>{while(n.firstChild)n.removeChild(n.firstChild);};
       '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:6px">'+
         '<div><span class="flag" style="background:'+TCOL[r.tipo]+';color:#fff;font-size:12px;padding:3px 9px">'+r.tipo+'</span> '+
         '<span style="font-family:var(--mono);font-size:12px;color:var(--cinza-med);margin-left:6px">'+r.ceg+'</span></div>'+
-        '<button class="btn" id="fclose">Fechar</button></div>'+
+        '<div style="display:flex;gap:7px;flex-wrap:wrap">'+
+        '<button class="btn" id="flink" title="Copiar link direto para esta ficha">Link</button>'+
+        '<button class="btn" id="fprint" title="Imprimir ou salvar em PDF">Imprimir</button>'+
+        '<button class="btn" id="fclose">Fechar</button></div></div>'+
       '<h3 style="font-size:27px;margin:8px 0 4px;line-height:1.15">'+(r.nome||'—')+'</h3>'+
       '<p style="color:var(--ink2);margin-bottom:14px">'+(r.mun||'—')+' · '+(REGN[r.reg]||'')+' · submercado '+r.sm+'</p>'+
       (fl.length?'<div style="margin-bottom:16px">'+fl.map(f=>'<span class="flag" style="background:'+FCOL[f[2]][0]+
@@ -2866,6 +2943,7 @@ const clear=n=>{while(n.firstChild)n.removeChild(n.firstChild);};
         (r.cri?linha('Categoria de risco',/ALT/i.test(r.cri)?'<span style="color:var(--laranja)">'+r.cri+'</span>':r.cri):'')+
         (r.dpa?linha('Dano potencial associado',/ALT/i.test(r.dpa)?'<span style="color:#b08600">'+r.dpa+'</span>':r.dpa):'')+
         '</tbody></table>':'')+
+      percentis(r)+
       '<div class="flab">Composição societária declarada</div>'+
       '<table style="font-size:14px;margin-bottom:18px"><tbody>'+
         (r.prop.length?r.prop.map(p=>linha(fmt(p.p,2)+'%',p.n)).join(''):linha('—','não informado'))+
@@ -2885,15 +2963,34 @@ const clear=n=>{while(n.firstChild)n.removeChild(n.firstChild);};
         fmt(soma(viz,'mw'),1)+' MW. Uma estiagem regional afeta este conjunto ao mesmo tempo.</p>':'')+
       '<div style="margin-top:22px;padding-top:16px;border-top:1px solid var(--cinza-cl)">'+
         '<button class="btn" id="fcart">'+(CART.has(r.ceg)?'Remover da carteira':'Adicionar à carteira')+'</button></div>'+
+      '<div style="display:none" class="soimpressao"></div>'+
       '<p class="src" style="margin-top:14px">Todos os campos vêm do SIGA/ANEEL'+(r.cls?' e do FSB/ANEEL':'')+
       '. Campos em branco na origem aparecem como travessão.</p>';
     $('#ficha').classList.add('open');
+    history.replaceState(null,'','#usina='+encodeURIComponent(r.ceg));
     $('#fclose').onclick=fechar;
+    $('#fprint').onclick=()=>{
+      const el=$('.soimpressao',$('#fichainner'));
+      if(el){el.style.display='block';
+        el.innerHTML='<hr style="border:0;border-top:1px solid #D7D2CB;margin:16px 0">'+
+        '<div style="font-size:10pt;color:#8C8279;line-height:1.5">'+
+        '<b>RB Asset</b> · Ficha extraída em '+new Date().toLocaleString('pt-BR')+
+        (META.gerado_em?' · base ANEEL/SIGA de '+META.gerado_em:'')+
+        '<br>Material educacional. Não constitui recomendação de investimento. '+
+        'Valide os dados na fonte primária antes de uso em material formal.</div>';}
+      window.print();};
+    $('#flink').onclick=()=>{
+      const url=location.origin+location.pathname+'#usina='+encodeURIComponent(r.ceg);
+      const b=$('#flink');
+      const ok=()=>{b.textContent='Copiado';setTimeout(()=>b.textContent='Link',2200);};
+      if(navigator.clipboard&&navigator.clipboard.writeText)
+        navigator.clipboard.writeText(url).then(ok,ok); else ok();};
     $('#fcart').onclick=()=>{CART.has(r.ceg)?CART.delete(r.ceg):CART.add(r.ceg);carteira();tabela();comparar();salvarEstado();ficha(r);};
     $$('.irma',$('#fichainner')).forEach(d=>d.onclick=()=>{
       const x=DB.find(y=>y.ceg===d.dataset.ceg);if(x)ficha(x);});
   }
-  function fechar(){$('#ficha').classList.remove('open');}
+  function fechar(){$('#ficha').classList.remove('open');
+    if((location.hash||'').startsWith('#usina='))history.replaceState(null,'',location.pathname);}
   $('#ficha').addEventListener('click',e=>{if(e.target.id==='ficha')fechar();});
   addEventListener('keydown',e=>{if(e.key==='Escape')fechar();});
 
