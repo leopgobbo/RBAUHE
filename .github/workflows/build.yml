@@ -43,11 +43,22 @@ jobs:
 
       - name: Conferir o arquivo gerado
         run: |
+          if [ "${RC:-1}" != "0" ]; then
+            {
+              echo "### :x: A coleta falhou"
+              echo ""
+              echo "Motivos de cada rota tentada:"
+              echo ""
+              echo '```'
+              grep -E "^SIGA:|^FSB:|^ERRO|^   " /tmp/coleta.log 2>/dev/null | tail -n 25 || echo "(sem log)"
+              echo '```'
+            } >> $GITHUB_STEP_SUMMARY
+          fi
           {
-            echo "### Log da coleta"
+            echo "### Log completo da coleta"
             echo ""
             echo '```'
-            tail -n 40 /tmp/coleta.log 2>/dev/null || echo "(sem log)"
+            tail -n 60 /tmp/coleta.log 2>/dev/null || echo "(sem log)"
             echo '```'
           } >> $GITHUB_STEP_SUMMARY
           if [ "${RC:-1}" != "0" ]; then
