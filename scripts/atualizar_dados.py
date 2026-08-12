@@ -27,12 +27,13 @@ SIGA_COLS = ["NomEmpreendimento","CodCEG","IdeNucleoCEG","SigUFPrincipal","SigTi
              "MdaPotenciaFiscalizadaKw","MdaGarantiaFisicaKw","NumCoordNEmpreendimento",
              "NumCoordEEmpreendimento","DatInicioVigencia","DatFimVigencia",
              "DscPropriRegimePariticipacao","DscSubBacia","DscMuninicpios"]
+SIGA_DATASET = "siga-sistema-de-informacoes-de-geracao-da-aneel"
 FSB_DATASET = "fsb-fiscalizacao-de-seguranca-de-barragens"
 
-log = lambda *a: print(*a, file=sys.stderr)
+log = lambda *a, **k: print(*a, file=sys.stderr, flush=True, **k)
 
 
-def http(url, timeout=240):
+def http(url, timeout=150):
     return urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=timeout).read()
 
 
@@ -67,23 +68,57 @@ def recursos_csv(slug):
 
 
 # ---------------------------------------------------------------- SIGA
+def _csv_direto(url):
+    txt = http(url, timeout=300).decode("utf-8-sig", errors="replace")
+    return list(csv.DictReader(io.StringIO(txt)))
+
+
 def baixar_siga():
-    tentativas = []
+    """Tenta várias rotas até conseguir a base. Registra cada tentativa na hora."""
+    estrategias = []
     for rid in SIGA_RECURSOS:
-        for nome, fn in (
-            ("datastore_search_sql", lambda r=rid: ckan_sql(
-                r, "\"SigTipoGeracao\" IN ('UHE','PCH','CGH')", SIGA_COLS)),
-            ("dump CSV", lambda r=rid: ckan_dump(r)),
-        ):
+        estrategias.append((f"datastore_search_sql · {rid[:8]}",
+                            lambda r=rid: ckan_sql(r, "\"SigTipoGeracao\" IN ('UHE','PCH','CGH')", SIGA_COLS)))
+        estrategias.append((f"datastore dump CSV · {rid[:8]}", lambda r=rid: ckan_dump(r)))
+    # última rota: URL publicada do recurso, direto do package_show
+    def via_package():
+        d = json.loads(http(f"{BASE}/api/3/action/package_show?id={SIGA_DATASET}", timeout=120))
+        if not d.get("success"):
+            raise RuntimeError("package_show falhou")
+        erros = []
+        for r in d["result"]["resources"]:
+            if (r.get("format") or "").upper() != "CSV" or not r.get("url"):
+                continue
             try:
-                recs = fn()
-                out = [{c: (r.get(c) or "").strip() for c in SIGA_COLS} for r in recs
-                       if (r.get("SigTipoGeracao") or "").strip().upper() in TIPOS]
-                if out:
-                    return out, f"{nome} · recurso {rid[:8]}"
+                linhas = _csv_direto(r["url"])
+                if linhas:
+                    return linhas
             except Exception as e:
-                tentativas.append(f"{nome} {rid[:8]}: {e}")
-    log("SIGA falhou em todas as estratégias:", *tentativas, sep="\n  ")
+                erros.append(f"{r.get('name','?')}: {e}")
+        raise RuntimeError("nenhum CSV baixável — " + "; ".join(erros[:3]))
+    estrategias.append(("URL direta do recurso (package_show)", via_package))
+
+    tentativas = []
+    for nome, fn in estrategias:
+        log(f"SIGA: tentando {nome}…")
+        try:
+            recs = fn()
+            out = [{c: (r.get(c) or "").strip() for c in SIGA_COLS} for r in recs
+                   if (r.get("SigTipoGeracao") or "").strip().upper() in TIPOS]
+            if not out:
+                raise RuntimeError(f"{len(recs)} linhas lidas, nenhuma de UHE/PCH/CGH")
+            log(f"SIGA: OK por {nome} — {len(out)} hidrelétricas")
+            return out, nome
+        except Exception as e:
+            msg = f"{type(e).__name__}: {e}"
+            log(f"SIGA:   falhou — {msg[:200]}")
+            tentativas.append(f"{nome} -> {msg[:200]}")
+    log("SIGA falhou em todas as estratégias:")
+    for t in tentativas:
+        log("   " + t)
+    anterior = pathlib.Path(__file__).resolve().parent.parent / "data" / "usinas.json"
+    if anterior.exists():
+        log("SIGA: mantendo o snapshot anterior — o site continua no ar com os dados da última coleta bem-sucedida")
     sys.exit(1)
 
 
